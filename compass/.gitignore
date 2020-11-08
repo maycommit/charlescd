@@ -1,6 +1,0 @@
-*.so
-.idea
-.vscode
-cover.html
-*.out
-dist

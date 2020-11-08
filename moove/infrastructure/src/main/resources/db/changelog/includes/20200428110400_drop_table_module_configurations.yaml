@@ -1,9 +1,0 @@
-databaseChangeLog:
-  - changeSet:
-      id: 20200428110400-1
-      author: adauto.paula
-      comment: "Drop table module_configurations"
-      changes:
-        - dropTable:
-            cascadeConstraints: true
-            tableName: modules_configurations
