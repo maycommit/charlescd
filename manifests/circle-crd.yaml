@@ -43,22 +43,7 @@ spec:
                 projects:
                   type: array
                   items:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                      name:
-                        type: string
-                      tag:
-                        type: string
-                      repository:
-                        type: string
-                      token:
-                        type: string
-                      paths:
-                        type: array
-                        items:
-                          type: string
+                    type: string
                 replicas:
                   type: integer
   # either Namespaced or Cluster

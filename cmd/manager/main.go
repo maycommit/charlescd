@@ -37,6 +37,10 @@ func main() {
 		r.HandleFunc("/circles", v1.CircleCreate(client)).Methods("POST")
 		r.HandleFunc("/circles", v1.CircleFindAll(client)).Methods("GET")
 	}
+	{
+		r.HandleFunc("/projects", v1.ProjectCreate(client)).Methods("POST")
+	}
 
+	log.Println("Start manager on port 8080...")
 	log.Println(http.ListenAndServe(":8080", r))
 }
