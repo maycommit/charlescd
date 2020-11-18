@@ -1,3 +1,5 @@
+[![GoReport Widget]][GoReport Status]
+
 [GoReport Status]: https://goreportcard.com/report/github.com/maycommit/charlescd
 [GoReport Widget]: https://goreportcard.com/badge/github.com/maycommit/charlescd
 
