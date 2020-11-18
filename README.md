@@ -15,4 +15,4 @@ This fork uses argo's [gitops-engine](https://github.com/argoproj/gitops-engine)
 - Continuous resync by interval ✅
 - Resync by circle modification unsing k8s informers
 - Support helm charts
-- Update resource status on circle CRD
+- Update resource status in circle CRD
