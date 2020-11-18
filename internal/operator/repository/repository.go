@@ -76,6 +76,5 @@ func ParseManifests(circleResource circle.CircleResource) ([]*unstructured.Unstr
 		}
 	}
 
-
 	return res, nil
 }

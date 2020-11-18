@@ -75,7 +75,6 @@ func main() {
 		i.Run(stopChan)
 	}(i)
 
-
 	ticker := time.NewTicker(3 * time.Second)
 
 	for {
@@ -89,12 +88,12 @@ func main() {
 			for _, obj := range list.Items {
 				syncConfig := sync.SyncConfig{
 					ClusterCache: clusterCache,
-					Config: config,
-					Disco: disco,
-					CircleRes: &obj,
-					Namespace: "default",
-					Prune: true,
-					Log: klogr,
+					Config:       config,
+					Disco:        disco,
+					CircleRes:    &obj,
+					Namespace:    "default",
+					Prune:        true,
+					Log:          klogr,
 				}
 				err := sync.Start(syncConfig)
 				if err != nil {

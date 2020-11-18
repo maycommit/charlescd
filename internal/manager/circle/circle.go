@@ -49,11 +49,11 @@ func (p Project) GetGCMark(key kube.ResourceKey) string {
 }
 
 type CircleResource struct {
-	ReleaseName string `json:"releaseName"`
-	Project Project `json:"project"`
-	Tag         string `json:"tag"`
-	Status      string `json:"status"`
-	Error       string `json:"error"`
+	ReleaseName string  `json:"releaseName"`
+	Project     Project `json:"project"`
+	Tag         string  `json:"tag"`
+	Status      string  `json:"status"`
+	Error       string  `json:"error"`
 }
 
 type Circle struct {
@@ -152,7 +152,6 @@ func GetProjectByResource(res interface{}) (Project, error) {
 	return project, nil
 }
 
-
 func GetResourcesByResource(res unstructured.Unstructured) ([]CircleResource, error) {
 	specEnvs, ok, err := unstructured.NestedSlice(res.Object, "spec", "resources")
 	if err != nil {
@@ -169,7 +168,7 @@ func GetResourcesByResource(res unstructured.Unstructured) ([]CircleResource, er
 
 			resources = append(resources, CircleResource{
 				ReleaseName: resource.(map[string]interface{})["releaseName"].(string),
-				Project: project,
+				Project:     project,
 				Tag:         resource.(map[string]interface{})["tag"].(string),
 			})
 		}

@@ -31,17 +31,16 @@ type resourceInfo struct {
 }
 
 type SyncResource struct {
-
 }
 
 type SyncConfig struct {
 	ClusterCache cache.ClusterCache
-	Config *rest.Config
-	Disco discovery.DiscoveryInterface
-	CircleRes *unstructured.Unstructured
-	Namespace string
-	Prune bool
-	Log logr.Logger
+	Config       *rest.Config
+	Disco        discovery.DiscoveryInterface
+	CircleRes    *unstructured.Unstructured
+	Namespace    string
+	Prune        bool
+	Log          logr.Logger
 }
 
 func ClusterCache(config *rest.Config, namespaces []string, log logr.Logger) cache.ClusterCache {
@@ -63,7 +62,6 @@ func ClusterCache(config *rest.Config, namespaces []string, log logr.Logger) cac
 
 func Start(syncConfig SyncConfig) error {
 
-
 	circleResources, err := circle.GetResourcesByResource(*syncConfig.CircleRes)
 	if err != nil {
 		return err
@@ -79,7 +77,7 @@ func Start(syncConfig SyncConfig) error {
 	for _, resource := range circleResources {
 		manifests, err = repository.ParseManifests(resource)
 		if err != nil {
-		return err
+			return err
 		}
 	}
 
@@ -91,7 +89,6 @@ func Start(syncConfig SyncConfig) error {
 		annotations[annotationGCMark] = syncConfig.CircleRes.GetName()
 		manifest.SetAnnotations(annotations)
 	}
-
 
 	result, err := gitOpsEngine.Sync(context.Background(), manifests, func(r *cache.Resource) bool {
 		return r.Info.(*resourceInfo).gcMark == syncConfig.CircleRes.GetName()
@@ -107,8 +104,6 @@ func Start(syncConfig SyncConfig) error {
 		_, _ = fmt.Fprintf(w, "%s\t%s\n", res.ResourceKey.String(), res.Message)
 	}
 	_ = w.Flush()
-
-
 
 	return nil
 }
