@@ -2,13 +2,13 @@ package git
 
 import (
 	"charlescd/internal/env"
-	"charlescd/internal/manager/project"
+	"charlescd/internal/manager/circle"
 	"fmt"
 	"github.com/go-git/go-git/v5"
 	"os"
 )
 
-func CloneAndOpenRepository(project project.Project) (*git.Repository, error) {
+func CloneAndOpenRepository(project circle.Project) (*git.Repository, error) {
 	gitDirOut := fmt.Sprintf("%s/%s", env.Get("GIT_DIR"), project.Name)
 
 	r, err := git.PlainClone(gitDirOut, false, &git.CloneOptions{

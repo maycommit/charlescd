@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -30,5 +31,17 @@ func CircleFindAll(client dynamic.Interface) func(w http.ResponseWriter, r *http
 
 		w.Header().Add("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(circles)
+	}
+}
+
+func CircleDeploy(client dynamic.Interface) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		err := circle.Deploy(client, vars["name"], r.Body)
+		if err != nil {
+			w.Header().Add("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
+			return
+		}
 	}
 }

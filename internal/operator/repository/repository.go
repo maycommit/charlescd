@@ -3,7 +3,7 @@ package repository
 import (
 	"bytes"
 	"charlescd/internal/env"
-	"charlescd/internal/manager/project"
+	"charlescd/internal/manager/circle"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -43,8 +43,9 @@ func SplitYAML(yamlData []byte) ([]*unstructured.Unstructured, error) {
 	return objs, nil
 }
 
-func ParseManifests(project project.Project) ([]*unstructured.Unstructured, error) {
+func ParseManifests(circleResource circle.CircleResource) ([]*unstructured.Unstructured, error) {
 	var res []*unstructured.Unstructured
+	project := circleResource.Project
 	gitDirOut := fmt.Sprintf("%s/%s", env.Get("GIT_DIR"), project.Name)
 	for i := range project.Paths {
 		if err := filepath.Walk(filepath.Join(gitDirOut, project.Paths[i]), func(path string, info os.FileInfo, err error) error {
@@ -74,6 +75,7 @@ func ParseManifests(project project.Project) ([]*unstructured.Unstructured, erro
 			return nil, err
 		}
 	}
+
 
 	return res, nil
 }

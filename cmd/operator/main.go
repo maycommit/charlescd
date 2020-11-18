@@ -3,14 +3,18 @@ package main
 import (
 	"charlescd/internal/manager/circle"
 	"charlescd/internal/operator/sync"
+	"context"
 	"flag"
+	"fmt"
 	"k8s.io/client-go/discovery"
+	"k8s.io/klog/v2/klogr"
 	"log"
 	"path/filepath"
+	"time"
 
 	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
@@ -19,6 +23,7 @@ import (
 )
 
 func main() {
+	klogr := klogr.New()
 	var kubeconfig *string
 	if home := homedir.HomeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -42,33 +47,62 @@ func main() {
 		log.Fatal(err)
 	}
 
+	clusterCache := sync.ClusterCache(config, []string{}, klogr)
+
+	resync := make(chan bool)
+
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
 	i := f.ForResource(circle.Resource).Informer()
 	i.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			logrus.Info("received add event!")
-			err := sync.Start(client, disco, obj.(*unstructured.Unstructured))
-			if err != nil {
-				log.Fatalln(err)
-			}
+			resync <- true
 		},
 		UpdateFunc: func(oldObj, obj interface{}) {
 			logrus.Info("received update event!")
-			err := sync.Start(client, disco, obj.(*unstructured.Unstructured))
-			if err != nil {
-				log.Fatalln(err)
-			}
+			resync <- true
 		},
 		DeleteFunc: func(obj interface{}) {
 			logrus.Info("received delete event!")
-			err := sync.Start(client, disco, obj.(*unstructured.Unstructured))
-			if err != nil {
-				log.Fatalln(err)
-			}
+			resync <- true
 		},
 	})
 
 	stopChan := make(chan struct{})
-	log.Println("Start sync operator on port 8080...")
-	i.Run(stopChan)
+
+	go func(i cache.SharedInformer) {
+		log.Println("Start sync operator on port 8080...")
+		i.Run(stopChan)
+	}(i)
+
+
+	ticker := time.NewTicker(3 * time.Second)
+
+	for {
+		select {
+		case <-ticker.C:
+			list, err := client.Resource(circle.Resource).Namespace("default").List(context.TODO(), metav1.ListOptions{})
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			for _, obj := range list.Items {
+				syncConfig := sync.SyncConfig{
+					ClusterCache: clusterCache,
+					Config: config,
+					Disco: disco,
+					CircleRes: &obj,
+					Namespace: "default",
+					Prune: true,
+					Log: klogr,
+				}
+				err := sync.Start(syncConfig)
+				if err != nil {
+					log.Fatalln(err)
+				}
+			}
+		case <-resync:
+			fmt.Println("CIRCLE RESYNC")
+		}
+	}
 }

@@ -40,10 +40,32 @@ spec:
                         type: string
                       value:
                         type: string
-                projects:
+                resources:
                   type: array
                   items:
-                    type: string
+                    type: object
+                    properties:
+                      releaseName:
+                        type: string
+                      project:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          repository:
+                            type: string
+                          token:
+                            type: string
+                          paths:
+                            type: array
+                            items:
+                              type: string
+                      tag:
+                        type: string
+                      status:
+                        type: string
+                      error:
+                        type: string
                 replicas:
                   type: integer
   # either Namespaced or Cluster
