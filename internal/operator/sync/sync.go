@@ -6,14 +6,16 @@ import (
 	"charlescd/internal/utils"
 	"context"
 	"fmt"
+
 	"github.com/argoproj/gitops-engine/pkg/engine"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/go-logr/logr"
 
 	//"github.com/libopenstorage/openstorage/api/client"
-	"k8s.io/client-go/rest"
 	"os"
 	"text/tabwriter"
+
+	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,6 +62,16 @@ func ClusterCache(config *rest.Config, namespaces []string, log logr.Logger) cac
 	return clusterCache
 }
 
+func addLabelToDeployment(cirleName string, manifest *unstructured.Unstructured) error {
+	labels, _, err := unstructured.NestedMap(manifest.Object, "spec", "template", "metadata", "labels")
+	if err != nil {
+		return err
+	}
+
+	labels["circle"] = cirleName
+	return unstructured.SetNestedMap(manifest.Object, labels, "spec", "template", "metadata", "labels")
+}
+
 func Start(syncConfig SyncConfig) error {
 
 	circleResources, err := circle.GetResourcesByResource(*syncConfig.CircleRes)
@@ -82,6 +94,12 @@ func Start(syncConfig SyncConfig) error {
 	}
 
 	for _, manifest := range manifests {
+
+		err = addLabelToDeployment(syncConfig.CircleRes.GetName(), manifest)
+		if err != nil {
+			return err
+		}
+
 		annotations := manifest.GetAnnotations()
 		if annotations == nil {
 			annotations = make(map[string]string)

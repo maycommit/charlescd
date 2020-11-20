@@ -6,17 +6,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"k8s.io/client-go/discovery"
-	"k8s.io/klog/v2/klogr"
 	"log"
 	"path/filepath"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2/klogr"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
@@ -42,6 +43,11 @@ func main() {
 		panic(err)
 	}
 
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		log.Fatal(err)
@@ -49,33 +55,35 @@ func main() {
 
 	clusterCache := sync.ClusterCache(config, []string{}, klogr)
 
-	resync := make(chan bool)
-
-	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
-	i := f.ForResource(circle.Resource).Informer()
-	i.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			logrus.Info("received add event!")
-			resync <- true
-		},
-		UpdateFunc: func(oldObj, obj interface{}) {
-			logrus.Info("received update event!")
-			resync <- true
-		},
-		DeleteFunc: func(obj interface{}) {
-			logrus.Info("received delete event!")
-			resync <- true
-		},
-	})
-
-	stopChan := make(chan struct{})
-
-	go func(i cache.SharedInformer) {
-		log.Println("Start sync operator on port 8080...")
-		i.Run(stopChan)
-	}(i)
-
 	ticker := time.NewTicker(3 * time.Second)
+
+	factory := informers.NewSharedInformerFactory(clientset, 0)
+	podInformer := factory.Core().V1().Pods()
+	podInformer.Informer().AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				newPod := obj.(*v1.Pod)
+				fmt.Println("ADD POD STATUS", newPod.Status)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				oldPod := old.(*v1.Pod)
+				newPod := new.(*v1.Pod)
+
+				newPod.GetAnnotations()
+				fmt.Println("UPDATE OLD POD STATUS", oldPod.Status)
+				fmt.Println("UPDATE NEW POD STATUS", newPod.Status)
+			},
+			DeleteFunc: func(obj interface{}) {
+				pod := obj.(*v1.Pod)
+				fmt.Println("DELETE POD STATUS", pod.Status)
+			},
+		},
+	)
+
+	stop := make(chan struct{})
+	go func(i cache.SharedIndexInformer) {
+		i.Run(stop)
+	}(podInformer.Informer())
 
 	for {
 		select {
@@ -100,8 +108,6 @@ func main() {
 					log.Fatalln(err)
 				}
 			}
-		case <-resync:
-			fmt.Println("CIRCLE RESYNC")
 		}
 	}
 }

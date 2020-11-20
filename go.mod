@@ -3,17 +3,21 @@ module charlescd
 go 1.15
 
 require (
-	github.com/argoproj/gitops-engine v0.1.3-0.20201113084616-069a5e64fb79
+	github.com/argoproj/argo-cd v1.7.9
+
+	github.com/argoproj/gitops-engine v0.2.0
+	github.com/colinmarc/hdfs v1.1.4-0.20180805212432-9746310a4d31 // indirect
 	github.com/go-git/go-git/v5 v5.2.0
 	github.com/go-logr/logr v0.2.1
 	github.com/gorilla/mux v1.8.0
 	github.com/imdario/mergo v0.3.11 // indirect
-	github.com/sirupsen/logrus v1.7.0
+	github.com/sirupsen/logrus v1.7.0 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
-	k8s.io/apimachinery v0.19.3
+	k8s.io/api v0.19.2
+	k8s.io/apimachinery v0.19.2
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
-	k8s.io/klog/v2 v2.2.0
-	k8s.io/utils v0.0.0-20201104234853-8146046b121e // indirect
+	k8s.io/klog/v2 v2.3.0
+	k8s.io/utils v0.0.0-20200729134348-d5654de09c73 // indirect
 	sigs.k8s.io/yaml v1.2.0
 )
 
