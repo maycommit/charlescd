@@ -6,6 +6,7 @@ import (
 	"charlescd/internal/utils"
 	"context"
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/health"
 
 	"github.com/argoproj/gitops-engine/pkg/engine"
 	"github.com/argoproj/gitops-engine/pkg/sync"
@@ -117,9 +118,23 @@ func Start(syncConfig SyncConfig) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "RESOURCE\tRESULT\n")
+	_, _ = fmt.Fprintf(w, "RESOURCE\tRESULT\tSTATUS\tMESSAGE\n")
 	for _, res := range result {
-		_, _ = fmt.Fprintf(w, "%s\t%s\n", res.ResourceKey.String(), res.Message)
+
+		currentManifest := &unstructured.Unstructured{}
+		for _, manifest := range manifests {
+			if res.ResourceKey.Name == manifest.GetName() && res.ResourceKey.Kind == manifest.GetKind() {
+				currentManifest = manifest
+				break
+			}
+		}
+
+		status, err := health.GetResourceHealth(currentManifest, nil)
+		if err != nil {
+			return err
+		}
+
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", res.ResourceKey.String(), res.Message, status.Status, status.Message)
 	}
 	_ = w.Flush()
 

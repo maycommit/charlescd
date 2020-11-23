@@ -40,34 +40,29 @@ spec:
                         type: string
                       value:
                         type: string
-                resources:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      releaseName:
-                        type: string
-                      project:
+                release:
+                  type: object
+                  properties:
+                    name: string
+                    tag: string
+                    projects:
+                      type: array
+                      items:
                         type: object
                         properties:
-                          name:
-                            type: string
-                          repository:
-                            type: string
-                          token:
-                            type: string
-                          paths:
+                          name: string
+                          repoURL: string
+                          path: string
+                          resources:
                             type: array
                             items:
-                              type: string
-                      tag:
-                        type: string
-                      status:
-                        type: string
-                      error:
-                        type: string
-                replicas:
-                  type: integer
+                              type: object
+                              properties:
+                                kind: string
+                                group: string
+                                version: string
+                                health: string
+                                status: string
   # either Namespaced or Cluster
   scope: Namespaced
   names:
