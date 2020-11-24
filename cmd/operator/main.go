@@ -5,7 +5,6 @@ import (
 	"charlescd/internal/operator/sync"
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"path/filepath"
 	"time"
@@ -63,19 +62,18 @@ func main() {
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				newPod := obj.(*v1.Pod)
-				fmt.Println("ADD POD STATUS", newPod.Status)
+				newPod.GetAnnotations()
 			},
 			UpdateFunc: func(old, new interface{}) {
 				oldPod := old.(*v1.Pod)
 				newPod := new.(*v1.Pod)
 
+				oldPod.GetAnnotations()
 				newPod.GetAnnotations()
-				fmt.Println("UPDATE OLD POD STATUS", oldPod.Status)
-				fmt.Println("UPDATE NEW POD STATUS", newPod.Status)
 			},
 			DeleteFunc: func(obj interface{}) {
 				pod := obj.(*v1.Pod)
-				fmt.Println("DELETE POD STATUS", pod.Status)
+				pod.GetAnnotations()
 			},
 		},
 	)
