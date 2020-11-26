@@ -13,6 +13,8 @@ This fork uses argo's [gitops-engine](https://github.com/argoproj/gitops-engine)
 - Create Circle CRD ✅
 - Implementing argo gitops-engine ✅
 - Continuous resync by interval ✅
+- Create API types with kubernetes/code-generator
+- Create controller based on kubernetes/sample-controller
 - Resync by circle modification unsing k8s informers
 - Add support helm charts
 - Update resource status in circle CRD
