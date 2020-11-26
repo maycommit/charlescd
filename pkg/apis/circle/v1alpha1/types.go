@@ -16,58 +16,64 @@ limitations under the License.
 
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
+// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type CircleProject struct {
-	Name    string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	RepoURL string `json:"repoUrl" protobuf:"bytes,2,opt,name=repoUrl"`
-	Path    string `json:"path" protobuf:"bytes,3,opt,name=path"`
+	Name    string `json:"name"`
+	RepoURL string `json:"repoUrl"`
+	Path    string `json:"path"`
 }
 
 type CircleRelease struct {
-	Name     string          `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Tag      string          `json:"tag" protobuf:"bytes,2,opt,name=tag"`
-	Projects []CircleProject `json:"projects" protobuf:"bytes,3,opt,name=projects"`
+	Name     string          `json:"name"`
+	Tag      string          `json:"tag"`
+	Projects []CircleProject `json:"projects"`
 }
 
 type CircleDestination struct {
-	Namespace string `json:"namespace" protobuf:"bytes,1,opt,name=namespace"`
+	Namespace string `json:"namespace"`
 }
 
 type CircleSpec struct {
-	Release     CircleRelease     `json:"release" protobuf:"bytes,1,opt,name=release"`
-	Destination CircleDestination `json:"destination" protobuf:"bytes,2,opt,name=destination"`
+	Release     CircleRelease     `json:"release"`
+	Destination CircleDestination `json:"destination"`
 }
 
 type ResourceHealth struct {
-	Status  string `json:"status,omitempty" protobuf:"bytes,1,opt,name=string"`
-	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 type ResourceStatus struct {
-	Group   string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Version string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
-	Kind    string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
-	Name    string         `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
-	Status  string         `json:"status,omitempty" protobuf:"bytes,5,opt,name=status"`
-	Health  *ResourceHealth `json:"health,omitempty" protobuf:"bytes,5,opt,name=health"`
+	Group   string         `json:"group,omitempty"`
+	Version string         `json:"version,omitempty"`
+	Kind    string         `json:"kind,omitempty"`
+	Name    string         `json:"name,omitempty"`
+	Status  string         `json:"status,omitempty"`
+	Health  *ResourceHealth `json:"health,omitempty"`
 }
 
 type CircleStatus struct {
-	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	Resources []ResourceStatus `json:"resources,omitempty"`
 }
 
 type Circle struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              CircleSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-	Status            CircleStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              CircleSpec   `json:"spec"`
+	Status            CircleStatus `json:"status,omitempty"`
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// FooList is a list of Foo resources
 type CircleList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Items           []Circle `json:"items" protobuf:"bytes,2,rep,name=items"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []Circle `json:"items"`
 }

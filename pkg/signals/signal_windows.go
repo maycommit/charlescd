@@ -14,8 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +k8s:deepcopy-gen=package
-// +groupName=samplecontroller.k8s.io
+package signals
 
-// Package v1alpha1 is the v1alpha1 version of the API.
-package v1alpha1 // import "k8s.io/sample-controller/pkg/apis/samplecontroller/v1alpha1"
+import (
+	"os"
+)
+
+var shutdownSignals = []os.Signal{os.Interrupt}

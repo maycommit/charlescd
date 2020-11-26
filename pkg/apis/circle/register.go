@@ -16,14 +16,7 @@ limitations under the License.
 
 package circle
 
+// GroupName is the group name used in this package
 const (
-	// API Group
-	Group string = "charlescd.io"
-
-	// Circle constants
-	CircleKind      string = "Circle"
-	CircleSingular  string = "circle"
-	CirclePlural    string = "circles"
-	CircleShortName string = "cir"
-	CircleFullName  string = CirclePlural + "." + Group
+	GroupName = "charlescd.io"
 )

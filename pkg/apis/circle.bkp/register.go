@@ -14,8 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +k8s:deepcopy-gen=package
-// +groupName=samplecontroller.k8s.io
+package circle_bkp
 
-// Package v1alpha1 is the v1alpha1 version of the API.
-package v1alpha1 // import "k8s.io/sample-controller/pkg/apis/samplecontroller/v1alpha1"
+const (
+	// API Group
+	Group string = "charlescd.io"
+
+	// Circle constants
+	CircleKind      string = "Circle"
+	CircleSingular  string = "circle"
+	CirclePlural    string = "circles"
+	CircleShortName string = "cir"
+	CircleFullName  string = CirclePlural + "." + Group
+)

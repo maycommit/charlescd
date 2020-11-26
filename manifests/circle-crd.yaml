@@ -20,49 +20,54 @@ spec:
             spec:
               type: object
               properties:
-                segments:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      key:
-                        type: string
-                      condition:
-                        type: string
-                      value:
-                        type: string
-                environments:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      key:
-                        type: string
-                      value:
-                        type: string
+                destination:
+                  type: object
+                  properties:
+                    namespace:
+                      type: string
                 release:
                   type: object
                   properties:
-                    name: string
-                    tag: string
+                    name:
+                      type: string
+                    tag:
+                      type: string
                     projects:
                       type: array
                       items:
                         type: object
                         properties:
-                          name: string
-                          repoURL: string
-                          path: string
-                          resources:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                kind: string
-                                group: string
-                                version: string
-                                health: string
-                                status: string
+                          name:
+                            type: string
+                          repoUrl:
+                            type: string
+                          Path:
+                            type: string
+            status:
+              type: object
+              properties:
+                resources:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      group:
+                        type: string
+                      version:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        type: string
+                      health:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                          message:
+                            type: string
   # either Namespaced or Cluster
   scope: Namespaced
   names:
