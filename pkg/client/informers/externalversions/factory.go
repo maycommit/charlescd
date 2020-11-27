@@ -172,9 +172,9 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Samplecontroller() circle.Interface
+	Circle() circle.Interface
 }
 
-func (f *sharedInformerFactory) Samplecontroller() circle.Interface {
+func (f *sharedInformerFactory) Circle() circle.Interface {
 	return circle.New(f, f.namespace, f.tweakListOptions)
 }

@@ -1161,6 +1161,8 @@ k8s.io/legacy-cloud-providers v0.19.2/go.mod h1:++wIKZl+1DvQ5i5y1T2ZzwYRkLFuhsZ/
 k8s.io/metrics v0.19.2/go.mod h1:IlLaAGXN0q7yrtB+SV0q3JIraf6VtlDr+iuTcX21fCU=
 k8s.io/repo-infra v0.0.1-alpha.1/go.mod h1:wO1t9WaB99V80ljbeENTnayuEEwNZt7gECYh/CEyOJ8=
 k8s.io/sample-apiserver v0.19.2/go.mod h1:XZxHsGPvUkjzos8B/lhbM4REthLt4tRMfkhN2CRXCGs=
+k8s.io/sample-controller v0.19.4 h1:1MeWyPWuSoMXnEMbC9MENNr/5MtPKQ6SkTIAPhOVtOc=
+k8s.io/sample-controller v0.19.4/go.mod h1:2ieYzugUuOswcr82gTIteG7s7MPEpBDbYo3vHbhkPj8=
 k8s.io/system-validators v1.0.4/go.mod h1:HgSgTg4NAGNoYYjKsUyk52gdNi2PVDswQ9Iyn66R7NI=
 k8s.io/system-validators v1.1.2/go.mod h1:bPldcLgkIUK22ALflnsXk8pvkTEndYdNuaHH6gRrl0Q=
 k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=

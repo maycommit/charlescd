@@ -1,20 +1,19 @@
 package circle
 
 import (
+	"charlescd/pkg/apis/circle/v1alpha1"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"io"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+	circleclientset "charlescd/pkg/client/clientset/versioned"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -48,19 +47,10 @@ func (p Project) GetGCMark(key kube.ResourceKey) string {
 	return "sha256." + base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
-type CircleResource struct {
-	ReleaseName string  `json:"releaseName"`
-	Project     Project `json:"project"`
-	Tag         string  `json:"tag"`
-	Status      string  `json:"status"`
-	Error       string  `json:"error"`
-}
-
 type Circle struct {
-	Name         string           `json:"name"`
-	Segments     []Segment        `json:"segments"`
-	Environments []Environment    `json:"environments"`
-	Resources    []CircleResource `json:"resources"`
+	Name string `json:"name"`
+	Release v1alpha1.CircleRelease `json:"release"`
+	Destination v1alpha1.CircleDestination `json:"destination"`
 }
 
 var Resource = schema.GroupVersionResource{
@@ -69,29 +59,24 @@ var Resource = schema.GroupVersionResource{
 	Resource: "circles",
 }
 
-func CreateCircle(client dynamic.Interface, data io.ReadCloser) error {
+func CreateCircle(client circleclientset.Interface, data io.ReadCloser) error {
 	newCircle := Circle{}
 	err := json.NewDecoder(data).Decode(&newCircle)
 	if err != nil {
 		return err
 	}
 
-	circleObject := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "charlecd.io/v1",
-			"kind":       "Circle",
-			"metadata": map[string]interface{}{
-				"name": newCircle.Name,
-			},
-			"spec": map[string]interface{}{
-				"segments":     newCircle.Segments,
-				"environments": newCircle.Environments,
-				"resources":    newCircle.Resources,
-			},
+	circleObject := &v1alpha1.Circle{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: newCircle.Name,
+		},
+		Spec: v1alpha1.CircleSpec{
+			Release: newCircle.Release,
+			Destination: newCircle.Destination,
 		},
 	}
 
-	_, err = client.Resource(Resource).Namespace("default").Create(context.TODO(), circleObject, metav1.CreateOptions{})
+	_, err = client.CircleV1alpha1().Circles("default").Create(context.TODO(), circleObject, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -99,153 +84,27 @@ func CreateCircle(client dynamic.Interface, data io.ReadCloser) error {
 	return nil
 }
 
-func getSegmentsByResource(res unstructured.Unstructured) ([]Segment, error) {
-	specSegments, ok, err := unstructured.NestedSlice(res.Object, "spec", "segments")
-	if err != nil {
-		return nil, err
-	}
 
-	var segments []Segment
-	if ok {
-		for _, segment := range specSegments {
-			segments = append(segments, Segment{
-				Key:       segment.(map[string]interface{})["key"].(string),
-				Condition: segment.(map[string]interface{})["condition"].(string),
-				Value:     segment.(map[string]interface{})["value"].(string),
-			})
-		}
-	}
-
-	return segments, nil
-}
-
-func getEnvironmentsByResource(res unstructured.Unstructured) ([]Environment, error) {
-	specEnvs, ok, err := unstructured.NestedSlice(res.Object, "spec", "environments")
-	if err != nil {
-		return nil, err
-	}
-
-	var environments []Environment
-	if ok {
-		for _, environment := range specEnvs {
-			environments = append(environments, Environment{
-				Key:   environment.(map[string]interface{})["key"].(string),
-				Value: environment.(map[string]interface{})["value"].(string),
-			})
-		}
-	}
-
-	return environments, nil
-}
-
-func GetProjectByResource(res interface{}) (Project, error) {
-	project := Project{
-		Name:       res.(map[string]interface{})["name"].(string),
-		Token:      res.(map[string]interface{})["token"].(string),
-		Repository: res.(map[string]interface{})["repository"].(string),
-	}
-
-	for _, path := range res.(map[string]interface{})["paths"].([]interface{}) {
-		project.Paths = append(project.Paths, path.(string))
-	}
-
-	return project, nil
-}
-
-func GetResourcesByResource(res unstructured.Unstructured) ([]CircleResource, error) {
-	specEnvs, ok, err := unstructured.NestedSlice(res.Object, "spec", "resources")
-	if err != nil {
-		return nil, err
-	}
-
-	resources := []CircleResource{}
-	if ok {
-		for _, resource := range specEnvs {
-			project, err := GetProjectByResource(resource.(map[string]interface{})["project"])
-			if err != nil {
-				return nil, err
-			}
-
-			resources = append(resources, CircleResource{
-				ReleaseName: resource.(map[string]interface{})["releaseName"].(string),
-				Project:     project,
-				Tag:         resource.(map[string]interface{})["tag"].(string),
-			})
-		}
-	}
-
-	return resources, nil
-}
-
-func ListCircles(client dynamic.Interface) ([]Circle, error) {
-	list, err := client.Resource(Resource).Namespace("default").List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
+func ListCircles(client circleclientset.Interface) ([]Circle, error) {
 	circles := []Circle{}
-	for _, res := range list.Items {
-		segments, err := getSegmentsByResource(res)
-		if err != nil {
-			return nil, err
-		}
+	list, err := client.CircleV1alpha1().Circles("default").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
 
-		environments, err := getEnvironmentsByResource(res)
-		if err != nil {
-			return nil, err
-		}
-
-		resources, err := GetResourcesByResource(res)
-		if err != nil {
-			return nil, err
-		}
-
+	for _, circle := range list.Items {
 		circles = append(circles, Circle{
-			Name:         res.GetName(),
-			Segments:     segments,
-			Environments: environments,
-			Resources:    resources,
+			Name: circle.GetName(),
+			Release: circle.Spec.Release,
+			Destination: circle.Spec.Destination,
 		})
 	}
 
 	return circles, nil
 }
 
-func Deploy(client dynamic.Interface, name string, data io.ReadCloser) error {
+func Deploy(client circleclientset.Interface, name string, data io.ReadCloser) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-
-		fmt.Println("NAME", name)
-		result, getErr := client.Resource(Resource).Namespace("default").Get(context.TODO(), name, metav1.GetOptions{})
-		if getErr != nil {
-			return errors.New("failed get resource in cluster: " + getErr.Error())
-		}
-
-		resources, err := GetResourcesByResource(*result)
-		if err != nil {
-			return errors.New("failed getResourcesByResource: " + err.Error())
-		}
-
-		newResource := CircleResource{}
-		err = json.NewDecoder(data).Decode(&newResource)
-		if err != nil {
-			return errors.New("fail to decode for json: " + err.Error())
-		}
-
-		newResource.Status = StatusProcessing
-
-		resources = append(resources, newResource)
-
-		nestedResources := []interface{}{}
-
-		for _, r := range resources {
-			nestedResources = append(nestedResources, r)
-		}
-
-		if err := unstructured.SetNestedSlice(result.Object, nestedResources, "spec", "resources"); err != nil {
-			return errors.New("failed set nested field: " + err.Error())
-		}
-
-		_, updateErr := client.Resource(Resource).Namespace("default").Update(context.TODO(), result, metav1.UpdateOptions{})
-		return errors.New("failed update: " + updateErr.Error())
+		return nil
 	})
 }

@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 
+	circleclientset "charlescd/pkg/client/clientset/versioned"
 	"github.com/gorilla/mux"
-	"k8s.io/client-go/dynamic"
 )
 
-func CircleCreate(client dynamic.Interface) func(w http.ResponseWriter, r *http.Request) {
+func CircleCreate(client circleclientset.Interface) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := circle.CreateCircle(client, r.Body)
 		if err != nil {
@@ -20,7 +20,7 @@ func CircleCreate(client dynamic.Interface) func(w http.ResponseWriter, r *http.
 	}
 }
 
-func CircleFindAll(client dynamic.Interface) func(w http.ResponseWriter, r *http.Request) {
+func CircleFindAll(client circleclientset.Interface) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		circles, err := circle.ListCircles(client)
 		if err != nil {
@@ -34,7 +34,7 @@ func CircleFindAll(client dynamic.Interface) func(w http.ResponseWriter, r *http
 	}
 }
 
-func CircleDeploy(client dynamic.Interface) func(w http.ResponseWriter, r *http.Request) {
+func CircleDeploy(client circleclientset.Interface) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		err := circle.Deploy(client, vars["name"], r.Body)

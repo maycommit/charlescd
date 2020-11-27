@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/mux"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
+
+	circleclientset "charlescd/pkg/client/clientset/versioned"
 )
 
 func main() {
@@ -27,10 +28,7 @@ func main() {
 		panic(err)
 	}
 
-	client, err := dynamic.NewForConfig(config)
-	if err != nil {
-		panic(err)
-	}
+	client := circleclientset.NewForConfigOrDie(config)
 
 	r := mux.NewRouter()
 	{
