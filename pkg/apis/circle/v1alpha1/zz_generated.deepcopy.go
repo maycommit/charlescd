@@ -21,6 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/health"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -43,9 +44,9 @@ func (in *CircleSpec) DeepCopyInto(out *CircleSpec) {
 
 func (in *CircleStatus) DeepCopyInto(out *CircleStatus) {
 	*out = *in
-	if in.Resources != nil {
-		in, out := &in.Resources, &out.Resources
-		*out = make([]ResourceStatus, len(*in))
+	if in.Projects != nil {
+		in, out := &in.Projects, &out.Projects
+		*out = make([]ProjectStatus, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -53,10 +54,15 @@ func (in *CircleStatus) DeepCopyInto(out *CircleStatus) {
 	return
 }
 
-func (in *ResourceHealth) DeepCopyInto(out *ResourceHealth) {
+func (in *ProjectStatus) DeepCopyInto(out *ProjectStatus) {
 	*out = *in
-	out.Status = in.Status
-	out.Message = in.Message
+	if in.Resources != nil {
+		in, out := &in.Resources, &out.Resources
+		*out = make([]ResourceStatus, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 
@@ -69,8 +75,8 @@ func (in *ResourceStatus) DeepCopyInto(out *ResourceStatus) {
 	out.Status = in.Status
 	if in.Health != nil {
 		in, out := &in.Health, &out.Health
-		*out = new(ResourceHealth)
-		(*in).DeepCopyInto(*out)
+		*out = new(health.HealthStatus)
+		*in = *out
 	}
 	return
 }

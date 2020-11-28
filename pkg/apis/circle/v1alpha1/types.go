@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/health"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -44,22 +45,23 @@ type CircleSpec struct {
 	Destination CircleDestination `json:"destination"`
 }
 
-type ResourceHealth struct {
-	Status  string `json:"status,omitempty"`
-	Message string `json:"message,omitempty"`
+type ResourceStatus struct {
+	Group   string               `json:"group,omitempty"`
+	Version string               `json:"version,omitempty"`
+	Kind    string               `json:"kind,omitempty"`
+	Name    string               `json:"name,omitempty"`
+	Status  string               `json:"status,omitempty"`
+	Health  *health.HealthStatus `json:"health,omitempty"`
 }
 
-type ResourceStatus struct {
-	Group   string         `json:"group,omitempty"`
-	Version string         `json:"version,omitempty"`
-	Kind    string         `json:"kind,omitempty"`
-	Name    string         `json:"name,omitempty"`
-	Status  string         `json:"status,omitempty"`
-	Health  *ResourceHealth `json:"health,omitempty"`
+type ProjectStatus struct {
+	Name      string           `json:"name,omitempty"`
+	Status    string           `json:"status,omitempty"`
+	Resources []ResourceStatus `json:"resources,omitempty"`
 }
 
 type CircleStatus struct {
-	Resources []ResourceStatus `json:"resources,omitempty"`
+	Projects []ProjectStatus `json:"projects,omitempty"`
 }
 
 type Circle struct {

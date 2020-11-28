@@ -7,13 +7,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"io"
 	"strings"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+
+	circleclientset "charlescd/pkg/client/clientset/versioned"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	circleclientset "charlescd/pkg/client/clientset/versioned"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -48,9 +50,10 @@ func (p Project) GetGCMark(key kube.ResourceKey) string {
 }
 
 type Circle struct {
-	Name string `json:"name"`
-	Release v1alpha1.CircleRelease `json:"release"`
+	Name        string                     `json:"name"`
+	Release     v1alpha1.CircleRelease     `json:"release"`
 	Destination v1alpha1.CircleDestination `json:"destination"`
+	Projects    []v1alpha1.ProjectStatus   `json:"resources"`
 }
 
 var Resource = schema.GroupVersionResource{
@@ -71,7 +74,7 @@ func CreateCircle(client circleclientset.Interface, data io.ReadCloser) error {
 			Name: newCircle.Name,
 		},
 		Spec: v1alpha1.CircleSpec{
-			Release: newCircle.Release,
+			Release:     newCircle.Release,
 			Destination: newCircle.Destination,
 		},
 	}
@@ -84,7 +87,6 @@ func CreateCircle(client circleclientset.Interface, data io.ReadCloser) error {
 	return nil
 }
 
-
 func ListCircles(client circleclientset.Interface) ([]Circle, error) {
 	circles := []Circle{}
 	list, err := client.CircleV1alpha1().Circles("default").List(context.TODO(), metav1.ListOptions{})
@@ -94,9 +96,10 @@ func ListCircles(client circleclientset.Interface) ([]Circle, error) {
 
 	for _, circle := range list.Items {
 		circles = append(circles, Circle{
-			Name: circle.GetName(),
-			Release: circle.Spec.Release,
+			Name:        circle.GetName(),
+			Release:     circle.Spec.Release,
 			Destination: circle.Spec.Destination,
+			Projects:    circle.Status.Projects,
 		})
 	}
 

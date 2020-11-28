@@ -1,19 +1,30 @@
 package main
 
 import (
-	"charlescd/internal/controller"
+	"charlescd/internal/controller/sync"
 	"context"
 	"flag"
-	"k8s.io/client-go/kubernetes"
+	"log"
+	"path/filepath"
+	"time"
+
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/klog/v2/klogr"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	"path/filepath"
 
 	circleclientset "charlescd/pkg/client/clientset/versioned"
-	circleinformers "charlescd/pkg/client/informers/externalversions"
+)
+
+const (
+	namespace = "default"
 )
 
 func main() {
+	klogr := klogr.New()
 	var kubeconfig *string
 	if home := homedir.HomeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -27,19 +38,41 @@ func main() {
 		panic(err)
 	}
 
-	kubeClient := kubernetes.NewForConfigOrDie(config)
+	kubeClient := dynamic.NewForConfigOrDie(config)
 	circleClient := circleclientset.NewForConfigOrDie(config)
-	circleInformerFactory := circleinformers.NewSharedInformerFactory(circleClient, 0)
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	clusterCache := sync.ClusterCache(config, []string{}, klogr)
+	ticker := time.NewTicker(3 * time.Second)
 
-	ctrl := controller.NewController(
-		"default",
-		kubeClient,
-		circleClient,
-		circleInformerFactory.Circle().V1alpha1().Circles(),
-	)
+	for {
+		select {
+		case <-ticker.C:
+			list, err := circleClient.CircleV1alpha1().Circles(namespace).List(context.TODO(), metav1.ListOptions{})
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ctrl.Run(ctx)
+			for _, obj := range list.Items {
+				syncConfig := sync.SyncConfig{
+					ClusterCache: clusterCache,
+					KubeClient:   kubeClient,
+					Config:       config,
+					Client:       circleClient.CircleV1alpha1().Circles(namespace),
+					Disco:        disco,
+					Circle:       &obj,
+					Namespace:    namespace,
+					Prune:        true,
+					Log:          klogr,
+				}
+				err := sync.Start(syncConfig)
+				if err != nil {
+					log.Fatalln(err)
+				}
+			}
+		}
+	}
 }

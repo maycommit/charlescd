@@ -6,6 +6,7 @@ require (
 	github.com/argoproj/argo-cd v1.7.9
 	github.com/argoproj/gitops-engine v0.2.0
 	github.com/colinmarc/hdfs v1.1.4-0.20180805212432-9746310a4d31 // indirect
+	github.com/go-git/go-git v4.7.0+incompatible
 	github.com/go-git/go-git/v5 v5.2.0
 	github.com/go-logr/logr v0.2.1
 	github.com/gorilla/mux v1.8.0

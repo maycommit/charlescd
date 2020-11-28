@@ -3,15 +3,16 @@ package repository
 import (
 	"bytes"
 	"charlescd/internal/env"
-	"charlescd/internal/manager/circle"
+	"charlescd/pkg/apis/circle/v1alpha1"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
-	"os"
-	"path/filepath"
 	"sigs.k8s.io/yaml"
 )
 
@@ -43,37 +44,34 @@ func SplitYAML(yamlData []byte) ([]*unstructured.Unstructured, error) {
 	return objs, nil
 }
 
-func ParseManifests(circleResource circle.CircleResource) ([]*unstructured.Unstructured, error) {
+func ParseManifests(project v1alpha1.CircleProject) ([]*unstructured.Unstructured, error) {
 	var res []*unstructured.Unstructured
-	project := circleResource.Project
 	gitDirOut := fmt.Sprintf("%s/%s", env.Get("GIT_DIR"), project.Name)
-	for i := range project.Paths {
-		if err := filepath.Walk(filepath.Join(gitDirOut, project.Paths[i]), func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
-			}
-			if ext := filepath.Ext(info.Name()); ext != ".json" && ext != ".yml" && ext != ".yaml" {
-				return nil
-			}
-			data, err := ioutil.ReadFile(path)
-
-			if err != nil {
-				return err
-			}
-			items, err := SplitYAML(data)
-			if err != nil {
-				return fmt.Errorf("failed to parse %s: %v", path, err)
-			}
-
-			fmt.Println("READ: ", items)
-			res = append(res, items...)
-			return nil
-		}); err != nil {
-			return nil, err
+	if err := filepath.Walk(filepath.Join(gitDirOut, project.Path), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
 		}
+		if info.IsDir() {
+			return nil
+		}
+		if ext := filepath.Ext(info.Name()); ext != ".json" && ext != ".yml" && ext != ".yaml" {
+			return nil
+		}
+		data, err := ioutil.ReadFile(path)
+
+		if err != nil {
+			return err
+		}
+		items, err := SplitYAML(data)
+		if err != nil {
+			return fmt.Errorf("failed to parse %s: %v", path, err)
+		}
+
+		fmt.Println("READ: ", items)
+		res = append(res, items...)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	return res, nil

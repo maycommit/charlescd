@@ -46,28 +46,37 @@ spec:
             status:
               type: object
               properties:
-                resources:
+                projects:
                   type: array
                   items:
                     type: object
                     properties:
-                      group:
-                        type: string
-                      version:
-                        type: string
-                      kind:
-                        type: string
                       name:
                         type: string
                       status:
                         type: string
-                      health:
-                        type: object
-                        properties:
-                          status:
-                            type: string
-                          message:
-                            type: string
+                      resources:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            group:
+                              type: string
+                            version:
+                              type: string
+                            kind:
+                              type: string
+                            name:
+                              type: string
+                            status:
+                              type: string
+                            health:
+                              type: object
+                              properties:
+                                status:
+                                  type: string
+                                message:
+                                  type: string
   # either Namespaced or Cluster
   scope: Namespaced
   names:
