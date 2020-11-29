@@ -53,7 +53,7 @@ type Circle struct {
 	Name        string                     `json:"name"`
 	Release     v1alpha1.CircleRelease     `json:"release"`
 	Destination v1alpha1.CircleDestination `json:"destination"`
-	Projects    []v1alpha1.ProjectStatus   `json:"resources"`
+	Projects    []v1alpha1.ProjectStatus   `json:"projects"`
 }
 
 var Resource = schema.GroupVersionResource{
