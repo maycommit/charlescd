@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom';
 import { Col, Row, Popover, PopoverHeader, PopoverBody, ListGroup, ListGroupItem } from 'reactstrap'
 import {
   Card, Button, CardHeader, CardFooter, CardBody,
@@ -22,45 +23,24 @@ const PopoverItem = ({ id, title, children }: any) => {
   )
 }
 
-const List = ({ circles, onDeploy }: any) => {
+const List = ({ circles, onDeploy, onEdit, onDelete }: any) => {
   return (
     <Row>
       {circles.map((circle: any) => (
         <Col xs={3}>
           <Card>
-            <CardHeader>{circle?.name}</CardHeader>
-            <CardBody>
-              <PopoverItem id="segments" title="Segments">
-                <ListGroup>
-                  {circle?.segments?.map((segment: any) => (
-                    <ListGroupItem>
-                      {`${segment?.key}`}{' '}
-                      {`${segment?.condition}`}{' '}
-                      {`${segment?.value}`}
-                    </ListGroupItem>
-                  ))}
-                </ListGroup>
-              </PopoverItem>
-              <PopoverItem id="environments" title="Environments">
-                <ListGroup>
-                  {circle?.environments?.map((environment: any) => (
-                    <ListGroupItem>
-                      <div><strong>Key: </strong>{`${environment?.key}`}{' '}</div>
-                      <div><strong>Value: </strong>{`${environment?.value}`}{' '}</div>
-                    </ListGroupItem>
-                  ))}
-                </ListGroup>
-              </PopoverItem>
-              <div>
-                {circle?.resources?.map((resource: any) => (
-                  <div className="circle-resource">
-                    <div>{resource?.name}</div>
-                  </div>
-                ))}
+            <CardHeader>
+              <Link to={`/circles/${circle?.name}`}>{circle?.name}</Link>
+              <div className="card-header-icons">
+                <a onClick={() => onEdit(circle)}><i className="fas fa-pen"></i></a>
+                <a onClick={() => onDelete(circle)}><i className="fas fa-trash"></i></a>
               </div>
+            </CardHeader>
+            <CardBody>
+
             </CardBody>
             <CardFooter>
-              {circle?.resources?.length <= 0 && <Button color="primary" onClick={() => onDeploy(circle?.name)} block>Deploy</Button>}
+
             </CardFooter>
           </Card>
         </Col>

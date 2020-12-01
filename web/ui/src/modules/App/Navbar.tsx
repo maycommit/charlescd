@@ -27,9 +27,6 @@ const Navbar = () => {
       <Collapse isOpen={isOpen} navbar>
         <Nav className="mr-auto" navbar>
           <NavItem>
-            <NavLink><Link to="/projects">Projects</Link></NavLink>
-          </NavItem>
-          <NavItem>
             <NavLink><Link to="/circles">Circles</Link></NavLink>
           </NavItem>
         </Nav>

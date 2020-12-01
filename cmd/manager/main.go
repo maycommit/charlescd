@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
 	circleclientset "charlescd/pkg/client/clientset/versioned"
+	circlepb "charlescd/pkg/grpc/circle"
 )
 
 func main() {
@@ -30,11 +32,20 @@ func main() {
 
 	client := circleclientset.NewForConfigOrDie(config)
 
+	conn, err := grpc.Dial(":9000", grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+
+	grpcClient := circlepb.NewCircleServiceClient(conn)
+
 	r := mux.NewRouter()
 	{
 		r.HandleFunc("/circles", v1.CircleCreate(client)).Methods("POST")
 		r.HandleFunc("/circles/{name}/deploy", v1.CircleDeploy(client)).Methods("POST")
 		r.HandleFunc("/circles", v1.CircleFindAll(client)).Methods("GET")
+		r.HandleFunc("/circles/{name}", v1.CircleShow(client, grpcClient)).Methods("GET")
 	}
 	log.Println("Start manager on port 8080...")
 	log.Println(http.ListenAndServe(":8080", r))

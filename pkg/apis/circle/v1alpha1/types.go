@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,13 +46,31 @@ type CircleSpec struct {
 	Destination CircleDestination `json:"destination"`
 }
 
+type ResourceHealth struct {
+	Status  health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	Message string                  `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
+}
+
 type ResourceStatus struct {
-	Group   string               `json:"group,omitempty"`
-	Version string               `json:"version,omitempty"`
-	Kind    string               `json:"kind,omitempty"`
-	Name    string               `json:"name,omitempty"`
-	Status  string               `json:"status,omitempty"`
-	Health  *health.HealthStatus `json:"health,omitempty"`
+	Group   string          `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version string          `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind    string          `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Name    string          `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+	Status  string          `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Health  *ResourceHealth `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+}
+
+type ResourceNode struct {
+	ResourceStatus  `protobuf:"bytes,1,opt,name=resource"`
+	ParentResources []ResourceStatus `json:"parentResources,omitempty" protobuf:"bytes,2,opt,name=ParentResources"`
+}
+
+type ProjectNode struct {
+	Name string
+}
+
+type CircleTree struct {
+	Nodes []ProjectNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
 }
 
 type ProjectStatus struct {
@@ -61,7 +80,8 @@ type ProjectStatus struct {
 }
 
 type CircleStatus struct {
-	Projects []ProjectStatus `json:"projects,omitempty"`
+	Status   common.ResultCode `json:"status,omitempty"`
+	Projects []ProjectStatus   `json:"projects,omitempty"`
 }
 
 type Circle struct {

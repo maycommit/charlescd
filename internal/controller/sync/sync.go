@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/go-git/go-git/v5"
 
 	"github.com/argoproj/gitops-engine/pkg/engine"
@@ -22,8 +22,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	circleInterface "charlescd/pkg/client/clientset/versioned/typed/circle/v1alpha1"
 
@@ -137,19 +135,43 @@ func Start(syncConfig SyncConfig) error {
 	projectMap := map[string][]v1alpha1.ResourceStatus{}
 	for _, res := range result {
 
-		status, err := syncConfig.getStatusForCurrentResource(res, manifests)
+		mapResourceKey := syncConfig.ClusterCache.GetNamespaceTopLevelResources(syncConfig.Namespace)
+		resKey := kube.NewResourceKey(
+			res.ResourceKey.Group,
+			res.ResourceKey.Kind,
+			res.ResourceKey.Namespace,
+			res.ResourceKey.Name,
+		)
+
+		fmt.Println("---------RESULT--------", res.ResourceKey)
+
+		resources := []cache.Resource{}
+		syncConfig.ClusterCache.IterateHierarchy(resKey, func(resource *cache.Resource, namespaceResources map[kube.ResourceKey]*cache.Resource) {
+			fmt.Println("---------OWNER--------", resource.OwnerRefs)
+			fmt.Println("---------CHILD--------", resource.Ref)
+
+			resources = append(resources, *resource)
+		})
+
+		// fmt.Println("---------RESOURCES--------", resources)
+
+		status, err := health.GetResourceHealth(mapResourceKey[resKey].Resource, nil)
 		if err != nil {
 			return err
 		}
 
 		resourceStatus := v1alpha1.ResourceStatus{
-			Kind:   res.ResourceKey.Kind,
-			Group:  res.ResourceKey.Group,
-			Name:   res.ResourceKey.Name,
-			Health: status,
+			Kind:  res.ResourceKey.Kind,
+			Group: res.ResourceKey.Group,
+			Name:  res.ResourceKey.Name,
+			Health: &v1alpha1.ResourceHealth{
+				Status:  status.Status,
+				Message: status.Message,
+			},
 		}
 
-		projectName := syncConfig.getProject(res, manifests)
+		resource := mapResourceKey[resKey].Resource
+		projectName := resource.GetAnnotations()[projectAnnotation]
 		projectMap[projectName] = append(projectMap[projectName], resourceStatus)
 	}
 
@@ -166,45 +188,6 @@ func Start(syncConfig SyncConfig) error {
 	}
 
 	return nil
-}
-
-func (syncConfig SyncConfig) getProject(res common.ResourceSyncResult, manifests []*unstructured.Unstructured) string {
-	currentManifest := &unstructured.Unstructured{}
-	for _, m := range manifests {
-		if res.ResourceKey.Name == m.GetName() {
-			currentManifest = m
-		}
-	}
-
-	return currentManifest.GetAnnotations()[projectAnnotation]
-}
-
-func (syncConfig SyncConfig) getStatusForCurrentResource(res common.ResourceSyncResult, manifests []*unstructured.Unstructured) (*health.HealthStatus, error) {
-	gv := schema.GroupVersion{
-		Group:   res.ResourceKey.Group,
-		Version: res.Version,
-	}
-
-	resources, err := syncConfig.Disco.ServerResourcesForGroupVersion(gv.String())
-	if err != nil {
-		return nil, err
-	}
-
-	var apiResource v1.APIResource
-	for _, r := range resources.APIResources {
-		if r.Kind == res.ResourceKey.Kind {
-			apiResource = r
-			break
-		}
-	}
-
-	gvr := gv.WithResource(apiResource.Name)
-	result, err := syncConfig.KubeClient.Resource(gvr).Namespace(syncConfig.Namespace).Get(context.TODO(), res.ResourceKey.Name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	return health.GetResourceHealth(result, nil)
 }
 
 func (syncConfig SyncConfig) updateCircle(projectStatusList []v1alpha1.ProjectStatus) error {

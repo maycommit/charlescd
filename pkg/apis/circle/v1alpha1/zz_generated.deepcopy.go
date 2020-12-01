@@ -21,7 +21,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/argoproj/gitops-engine/pkg/health"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -75,7 +74,7 @@ func (in *ResourceStatus) DeepCopyInto(out *ResourceStatus) {
 	out.Status = in.Status
 	if in.Health != nil {
 		in, out := &in.Health, &out.Health
-		*out = new(health.HealthStatus)
+		*out = new(ResourceHealth)
 		*in = *out
 	}
 	return

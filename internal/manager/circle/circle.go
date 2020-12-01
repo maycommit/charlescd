@@ -13,7 +13,9 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 
 	circleclientset "charlescd/pkg/client/clientset/versioned"
+	circlepb "charlescd/pkg/grpc/circle"
 
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/util/retry"
@@ -54,6 +56,7 @@ type Circle struct {
 	Release     v1alpha1.CircleRelease     `json:"release"`
 	Destination v1alpha1.CircleDestination `json:"destination"`
 	Projects    []v1alpha1.ProjectStatus   `json:"projects"`
+	Tree        json.RawMessage            `json:"tree"`
 }
 
 var Resource = schema.GroupVersionResource{
@@ -80,8 +83,18 @@ func CreateCircle(client circleclientset.Interface, data io.ReadCloser) error {
 	}
 
 	_, err = client.CircleV1alpha1().Circles("default").Create(context.TODO(), circleObject, metav1.CreateOptions{})
-	if err != nil {
-		return err
+	if k8sErrors.IsAlreadyExists(err) {
+
+		return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			result, err := client.CircleV1alpha1().Circles("default").Get(context.TODO(), newCircle.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+
+			result.Spec = circleObject.Spec
+			_, err = client.CircleV1alpha1().Circles("default").Update(context.TODO(), result, metav1.UpdateOptions{})
+			return err
+		})
 	}
 
 	return nil
@@ -104,6 +117,36 @@ func ListCircles(client circleclientset.Interface) ([]Circle, error) {
 	}
 
 	return circles, nil
+}
+
+func GetCircle(client circleclientset.Interface, grpcClient circlepb.CircleServiceClient, name string) (Circle, error) {
+	circle, err := client.CircleV1alpha1().Circles("default").Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return Circle{}, err
+	}
+
+	tree, err := grpcClient.CircleTree(context.Background(), &circlepb.Circle{
+		Name:      name,
+		Namespace: "default",
+	})
+	if err != nil {
+		return Circle{}, err
+	}
+
+	b, err := json.Marshal(tree)
+	if err != nil {
+		return Circle{}, err
+	}
+
+	fmt.Println(tree.Nodes)
+
+	return Circle{
+		Name:        circle.GetName(),
+		Release:     circle.Spec.Release,
+		Destination: circle.Spec.Destination,
+		Projects:    circle.Status.Projects,
+		Tree:        b,
+	}, nil
 }
 
 func Deploy(client circleclientset.Interface, name string, data io.ReadCloser) error {

@@ -6,7 +6,7 @@ import {
   Link
 } from "react-router-dom";
 import Circle from '../Circle';
-import Project from '../Project';
+import CircleTree from '../CircleTree';
 import Navbar from './Navbar'
 
 const App = () => {
@@ -17,8 +17,8 @@ const App = () => {
 
         <div>
           <Switch>
-            <Route path="/circles" component={Circle} />
-            <Route path="/projects" component={Project} />
+            <Route path="/circles" component={Circle} exact />
+            <Route path="/circles/:name" component={CircleTree} />
           </Switch>
         </div>
       </div>

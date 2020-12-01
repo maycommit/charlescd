@@ -1,0 +1,52 @@
+syntax = "proto3";
+option go_package = "/circle";
+package circle;
+
+service CircleService {
+  rpc CircleTree (Circle) returns (CircleTreeResponse) {}
+}
+
+message ResourceHealth {
+  optional string status = 1;
+  
+  optional string message = 2;
+}
+
+message ResourceStatus {
+  optional string group = 1;
+
+  optional string version = 2;
+
+  optional string kind = 3;
+
+  optional string name = 4;
+
+  optional string status = 5;
+
+  optional ResourceHealth health = 6;
+}
+
+message ResourceParent {
+  string name = 1;
+  string kind = 2;
+  bool controller = 3;
+}
+
+message ResourceNode {
+  optional ResourceStatus resourceStatus = 1;
+  repeated ResourceParent parents = 2;
+}
+
+message ProjectNode {
+  string name = 1;
+  repeated ResourceNode resources = 2;
+}
+
+message CircleTreeResponse {
+  repeated ProjectNode nodes = 1;
+}
+
+message Circle {
+  string name = 1;
+  string namespace = 2;
+}

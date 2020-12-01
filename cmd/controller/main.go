@@ -5,9 +5,11 @@ import (
 	"context"
 	"flag"
 	"log"
+	"net"
 	"path/filepath"
 	"time"
 
+	"google.golang.org/grpc"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2/klogr"
@@ -16,7 +18,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
+	"charlescd/cmd/controller/server"
 	circleclientset "charlescd/pkg/client/clientset/versioned"
+	circlepb "charlescd/pkg/grpc/circle"
 )
 
 const (
@@ -46,8 +50,22 @@ func main() {
 	}
 
 	clusterCache := sync.ClusterCache(config, []string{}, klogr)
-	ticker := time.NewTicker(3 * time.Second)
 
+	lis, err := net.Listen("tcp", ":9000")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	s := grpc.NewServer()
+	circlepb.RegisterCircleServiceServer(s, &server.GRPCServer{
+		ClusterCache:                     &clusterCache,
+		CircleClientset:                  circleClient,
+		UnimplementedCircleServiceServer: circlepb.UnimplementedCircleServiceServer{},
+	})
+
+	go s.Serve(lis)
+
+	ticker := time.NewTicker(3 * time.Second)
 	for {
 		select {
 		case <-ticker.C:

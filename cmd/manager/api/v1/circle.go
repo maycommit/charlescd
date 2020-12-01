@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	circleclientset "charlescd/pkg/client/clientset/versioned"
+	circlepb "charlescd/pkg/grpc/circle"
+
 	"github.com/gorilla/mux"
 )
 
@@ -23,6 +25,21 @@ func CircleCreate(client circleclientset.Interface) func(w http.ResponseWriter, 
 func CircleFindAll(client circleclientset.Interface) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		circles, err := circle.ListCircles(client)
+		if err != nil {
+			w.Header().Add("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
+			return
+		}
+
+		w.Header().Add("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(circles)
+	}
+}
+
+func CircleShow(client circleclientset.Interface, grpcClient circlepb.CircleServiceClient) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		circles, err := circle.GetCircle(client, grpcClient, vars["name"])
 		if err != nil {
 			w.Header().Add("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
