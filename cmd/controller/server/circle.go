@@ -7,6 +7,7 @@ import (
 	circlepb "charlescd/pkg/grpc/circle"
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,7 +35,6 @@ func (s *GRPCServer) CircleTree(ctx context.Context, in *circlepb.Circle) (*circ
 			cl := *s.ClusterCache
 
 			cl.IterateHierarchy(resKey, func(resource *cache.Resource, namespaceResources map[kube.ResourceKey]*cache.Resource) {
-				fmt.Println(resource)
 
 				k := resource.ResourceKey()
 				node := circlepb.ResourceNode{}
@@ -44,6 +44,19 @@ func (s *GRPCServer) CircleTree(ctx context.Context, in *circlepb.Circle) (*circ
 					Version: &resource.ResourceVersion,
 					Kind:    &resource.Ref.Kind,
 					Name:    &resource.Ref.Name,
+				}
+
+				var status *health.HealthStatus
+				if resource.Resource != nil {
+					status, _ = health.GetResourceHealth(resource.Resource, nil)
+				}
+
+				if status != nil {
+					statusStr := string(status.Status)
+					node.ResourceStatus.Health = &circlepb.ResourceHealth{
+						Status:  &statusStr,
+						Message: &status.Message,
+					}
 				}
 
 				for _, parent := range resource.OwnerRefs {

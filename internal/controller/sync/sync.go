@@ -102,8 +102,18 @@ func Start(syncConfig SyncConfig) error {
 
 	manifests := []*unstructured.Unstructured{}
 	for _, project := range release.Projects {
-		_, err := cloneAndOpenRepository(project)
+		r, err := cloneAndOpenRepository(project)
 		if err != nil {
+			return err
+		}
+
+		w, err := r.Worktree()
+		if err != nil {
+			return err
+		}
+
+		err = w.Pull(&git.PullOptions{RemoteName: "origin"})
+		if err != nil && err != git.NoErrAlreadyUpToDate {
 			return err
 		}
 
@@ -142,18 +152,6 @@ func Start(syncConfig SyncConfig) error {
 			res.ResourceKey.Namespace,
 			res.ResourceKey.Name,
 		)
-
-		fmt.Println("---------RESULT--------", res.ResourceKey)
-
-		resources := []cache.Resource{}
-		syncConfig.ClusterCache.IterateHierarchy(resKey, func(resource *cache.Resource, namespaceResources map[kube.ResourceKey]*cache.Resource) {
-			fmt.Println("---------OWNER--------", resource.OwnerRefs)
-			fmt.Println("---------CHILD--------", resource.Ref)
-
-			resources = append(resources, *resource)
-		})
-
-		// fmt.Println("---------RESOURCES--------", resources)
 
 		status, err := health.GetResourceHealth(mapResourceKey[resKey].Resource, nil)
 		if err != nil {
