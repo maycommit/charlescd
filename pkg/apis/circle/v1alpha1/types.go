@@ -53,10 +53,10 @@ type Environment struct {
 }
 
 type CircleSpec struct {
-	Release      CircleRelease     `json:"release"`
-	Destination  CircleDestination `json:"destination"`
-	Environments []Environment     `json:"environments"`
-	Segments     []Segment         `json:"segments"`
+	Release      *CircleRelease    `json:"release,omitempty"`
+	Destination  CircleDestination `json:"destination,omitempty"`
+	Environments []Environment     `json:"environments,omitempty"`
+	Segments     []Segment         `json:"segments,omitempty"`
 }
 
 type ResourceHealth struct {
@@ -71,19 +71,6 @@ type ResourceStatus struct {
 	Name    string          `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
 	Status  string          `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	Health  *ResourceHealth `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
-}
-
-type ResourceNode struct {
-	ResourceStatus  `protobuf:"bytes,1,opt,name=resource"`
-	ParentResources []ResourceStatus `json:"parentResources,omitempty" protobuf:"bytes,2,opt,name=ParentResources"`
-}
-
-type ProjectNode struct {
-	Name string
-}
-
-type CircleTree struct {
-	Nodes []ProjectNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
 }
 
 type ProjectStatus struct {
