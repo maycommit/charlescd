@@ -55,9 +55,10 @@ const getEdges = (projectId: string, resources: any[]) => {
 
 const getResources = (resources: any[]) => {
   return resources?.map((resource, i) => {
-    let newRes = {
+    let newRes: NodeOptions = {
       id: `${resource?.ref?.kind}-${resource?.ref?.name}`,
       label: `${resource?.ref?.kind}: ${resource?.ref?.name}`,
+      shape: "circle",
       styles: {
         shape: {
           styles: { fill: "#fff", stroke: "#000", strokeWidth: "0" }
@@ -82,7 +83,9 @@ const getResources = (resources: any[]) => {
     if (resource?.ref?.health) {
       let health = resource?.ref?.health
       if (health.status !== "Healthy") {
-        newRes.styles.shape.styles.stroke = "#ff0000"
+        if (newRes?.styles?.shape?.styles) {
+          newRes.styles.shape.styles.stroke = "#ff0000"
+        }
       }
     }
 
@@ -147,9 +150,9 @@ const getElements = (circleName: string, nodes: any[]): ElementsState => {
     }
 
     nod = [...nod, ...getResources(nodes[i]?.resources), projectNode, circleNode]
-
-    nod = nod.sort((a, b) => a.id.localeCompare(b.id))
+    nod = nod.sort((a, b) => a.label.localeCompare(b.label))
     edges = [...edges, ...getEdges(projectNodeID, nodes[i]?.resources), newProjectCircleEdge]
+    edges = edges.sort((a, b) => a.to.localeCompare(b.to))
   }
 
   return {
@@ -174,7 +177,7 @@ const CircleTree = () => {
         const newElements = getElements(circle?.name, circleTreeRes?.nodes)
         setElements(newElements)
         setStage(stage => stage + 1)
-        setTimeout(getCircleTreeReq, 5000)
+        setTimeout(getCircleTreeReq, 2000)
       } catch (e) {
         setException('Cannot get circle resource tree: ' + e.message)
       }
