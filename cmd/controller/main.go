@@ -64,10 +64,11 @@ func main() {
 	})
 
 	go func() {
-		log.Println("Start grpc server...")
+		log.Println("GRPC server started on port 9090!")
 		if err := s.Serve(lis); err != nil {
 			log.Fatalln(err)
 		}
+
 	}()
 
 	ticker := time.NewTicker(3 * time.Second)

@@ -53,7 +53,7 @@ func (p Project) GetGCMark(key kube.ResourceKey) string {
 
 type Circle struct {
 	Name         string                     `json:"name"`
-	Release      v1alpha1.CircleRelease     `json:"release"`
+	Release      *v1alpha1.CircleRelease    `json:"release"`
 	Destination  v1alpha1.CircleDestination `json:"destination"`
 	Segments     []v1alpha1.Segment         `json:"segments"`
 	Environments []v1alpha1.Environment     `json:"environments"`

@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"text/tabwriter"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -56,12 +57,13 @@ type SyncConfig struct {
 func ClusterCache(config *rest.Config, namespaces []string, log logr.Logger) cache.ClusterCache {
 	clusterCache := cache.NewClusterCache(config,
 		cache.SetNamespaces(namespaces),
-		cache.SetLogr(log),
+		// cache.SetLogr(log),
 		cache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 			// store gc mark of every resource
 			gcMark := un.GetAnnotations()[circleAnnotation]
 			info = &resourceInfo{gcMark: un.GetAnnotations()[circleAnnotation]}
 			// cache resources that has that mark to improve performance
+
 			cacheManifest = gcMark != ""
 			return
 		}),
@@ -93,57 +95,62 @@ func cloneAndOpenRepository(project v1alpha1.CircleProject) (*git.Repository, er
 
 func Start(syncConfig SyncConfig) error {
 
-	release := syncConfig.Circle.Spec.Release
-	gitOpsEngine := engine.NewEngine(syncConfig.Config, syncConfig.ClusterCache, engine.WithLogr(syncConfig.Log))
+	spec := syncConfig.Circle.Spec
+	gitOpsEngine := engine.NewEngine(syncConfig.Config, syncConfig.ClusterCache)
 	_, err := gitOpsEngine.Run()
 	if err != nil {
 		return err
 	}
 
 	manifests := []*unstructured.Unstructured{}
-	for _, project := range release.Projects {
-		r, err := cloneAndOpenRepository(project)
-		if err != nil {
-			return err
-		}
-
-		w, err := r.Worktree()
-		if err != nil {
-			return err
-		}
-
-		err = w.Pull(&git.PullOptions{RemoteName: "origin"})
-		if err != nil && err != git.NoErrAlreadyUpToDate {
-			return err
-		}
-
-		manifests, err = repository.ParseManifests(project)
-		if err != nil {
-			return err
-		}
-
-		for _, manifest := range manifests {
-
-			annotations := manifest.GetAnnotations()
-			if annotations == nil {
-				annotations = make(map[string]string)
+	if spec.Release != nil {
+		for _, project := range spec.Release.Projects {
+			r, err := cloneAndOpenRepository(project)
+			if err != nil {
+				return err
 			}
-			annotations[circleAnnotation] = syncConfig.Circle.GetName()
-			annotations[projectAnnotation] = project.Name
-			manifest.SetAnnotations(annotations)
+
+			w, err := r.Worktree()
+			if err != nil {
+				return err
+			}
+
+			err = w.Pull(&git.PullOptions{RemoteName: "origin"})
+			if err != nil && err != git.NoErrAlreadyUpToDate {
+				return err
+			}
+
+			manifests, err = repository.ParseManifests(project)
+			if err != nil {
+				return err
+			}
+
+			for _, manifest := range manifests {
+
+				annotations := manifest.GetAnnotations()
+				if annotations == nil {
+					annotations = make(map[string]string)
+				}
+				annotations[circleAnnotation] = syncConfig.Circle.GetName()
+				annotations[projectAnnotation] = project.Name
+				manifest.SetAnnotations(annotations)
+			}
 		}
 	}
 
 	result, err := gitOpsEngine.Sync(context.Background(), manifests, func(r *cache.Resource) bool {
 		return r.Info.(*resourceInfo).gcMark == syncConfig.Circle.GetName()
-	}, utils.NewSHA1Hash(), syncConfig.Namespace, sync.WithPrune(syncConfig.Prune), sync.WithLogr(syncConfig.Log))
+	}, utils.NewSHA1Hash(), syncConfig.Namespace, sync.WithPrune(syncConfig.Prune))
 	if err != nil {
 		syncConfig.Log.Error(err, "Failed to synchronize cluster state")
 		return err
 	}
 
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintf(w, "RESOURCE\tRESULT\n")
 	projectMap := map[string][]v1alpha1.ResourceStatus{}
 	for _, res := range result {
+		_, _ = fmt.Fprintf(w, "%s\t%s\n", res.ResourceKey.String(), res.Message)
 
 		mapResourceKey := syncConfig.ClusterCache.GetNamespaceTopLevelResources(syncConfig.Namespace)
 		resKey := kube.NewResourceKey(
@@ -172,6 +179,8 @@ func Start(syncConfig SyncConfig) error {
 		projectName := resource.GetAnnotations()[projectAnnotation]
 		projectMap[projectName] = append(projectMap[projectName], resourceStatus)
 	}
+
+	_ = w.Flush()
 
 	projectsStatus := []v1alpha1.ProjectStatus{}
 	for projectName, resources := range projectMap {
