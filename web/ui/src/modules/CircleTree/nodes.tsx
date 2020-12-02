@@ -54,14 +54,14 @@ const Circle = ({ node }: any) => {
   return (
     <div
       style={{
-        borderRadius: "50%",
+        borderRadius: "5px",
         borderWidth: "2px",
-        borderColor: "black",
+        borderColor: "#000",
         borderStyle: "solid",
-        width: "100px",
-        padding: "20px 10px",
-        backgroundColor: "#fff",
-        height: "100px"
+        maxWidth: "200px",
+        minWidth: "180px",
+        padding: "10px 10px",
+        backgroundColor: "#fff"
       }}
     >
       <div style={{ fontWeight: "bold" }}>{node.label}</div>

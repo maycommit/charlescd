@@ -3,7 +3,8 @@ import {
   BrowserRouter as Router,
   Switch,
   Route,
-  Link
+  Link,
+  Redirect
 } from "react-router-dom";
 import Circle from '../Circle';
 import CircleTree from '../CircleTree';
@@ -17,6 +18,7 @@ const App = () => {
 
         <div>
           <Switch>
+            <Route path="/" component={Circle} exact />
             <Route path="/circles" component={Circle} exact />
             <Route path="/circles/:name" component={CircleTree} />
           </Switch>

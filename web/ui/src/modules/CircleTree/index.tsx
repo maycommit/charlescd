@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { DagreReact, Rect, RecursivePartial, NodeOptions, EdgeOptions, Size, ReportSize, ValueCache } from 'dagre-reactjs'
 import nodes from './nodes'
 import { Alert } from 'reactstrap';
-import { getCircle } from '../../core/api/circle';
+import { getCircle, getCircleTree } from '../../core/api/circle';
 import Sidebar from './Sidebar'
 import './style.css'
 
@@ -35,14 +35,14 @@ const getEdges = (projectId: string, resources: any[]) => {
     if (resources[i]?.parents) {
       const edges = resources[i]?.parents?.map((parent: any) => ({
         from: `${parent?.kind}-${parent?.name}`,
-        to: `${resources[i]?.resourceStatus?.kind}-${resources[i]?.resourceStatus?.name}`
+        to: `${resources[i]?.ref?.kind}-${resources[i]?.ref?.name}`
       }))
 
       allEdges = [...allEdges, ...edges]
     } else {
       let newEdge = {
         from: projectId,
-        to: `${resources[i]?.resourceStatus?.kind}-${resources[i]?.resourceStatus?.name}`
+        to: `${resources[i]?.ref?.kind}-${resources[i]?.ref?.name}`
       }
 
       allEdges = [...allEdges, newEdge]
@@ -56,8 +56,8 @@ const getEdges = (projectId: string, resources: any[]) => {
 const getResources = (resources: any[]) => {
   return resources?.map((resource, i) => {
     let newRes = {
-      id: `${resource?.resourceStatus?.kind}-${resource?.resourceStatus?.name}`,
-      label: `${resource?.resourceStatus?.kind}: ${resource?.resourceStatus?.name}`,
+      id: `${resource?.ref?.kind}-${resource?.ref?.name}`,
+      label: `${resource?.ref?.kind}: ${resource?.ref?.name}`,
       styles: {
         shape: {
           styles: { fill: "#fff", stroke: "#000", strokeWidth: "0" }
@@ -76,11 +76,11 @@ const getResources = (resources: any[]) => {
 
       },
       labelType: "resource",
-      meta: { ...resource?.resourceStatus }
+      meta: { ...resource?.ref }
     }
 
-    if (resource?.resourceStatus?.health) {
-      let health = resource?.resourceStatus?.health
+    if (resource?.ref?.health) {
+      let health = resource?.ref?.health
       if (health.status !== "Healthy") {
         newRes.styles.shape.styles.stroke = "#ff0000"
       }
@@ -148,9 +148,6 @@ const getElements = (circleName: string, nodes: any[]): ElementsState => {
     edges = [...edges, ...getEdges(projectNodeID, nodes[i]?.resources), newProjectCircleEdge]
   }
 
-  console.log("NODES", nod)
-  console.log("EDGES", edges)
-
   return {
     nodes: nod,
     edges: edges,
@@ -161,26 +158,37 @@ const getElements = (circleName: string, nodes: any[]): ElementsState => {
 const CircleTree = () => {
   const containerRef = useRef<any>(null)
   const { name } = useParams<any>()
-  const [circle, setCircle] = useState({})
+  const [circle, setCircle] = useState<any>({})
   const [elements, setElements] = useState<ElementsState>({ nodes: [], edges: [] })
   const [stage, setStage] = useState(0)
   const [exception, setException] = useState("")
 
-  const poll = async () => {
+  const getCircleTreeReq = async () => {
     try {
-      const circleRes = await getCircle(name)
-      setCircle(circleRes)
-      setElements(getElements(circleRes?.name, circleRes?.tree?.nodes))
+      const circleTreeRes = await getCircleTree(name)
+      setElements(getElements(circle?.name, circleTreeRes?.nodes))
       setStage(stage => stage + 1)
-      setTimeout(poll, 3000)
+      setTimeout(getCircleTreeReq, 3000)
     } catch (e) {
       setException('Cannot get circle resource tree: ' + e.message)
     }
 
   }
 
+  const getCircleReq = async () => {
+    try {
+      const circleRes = await getCircle(name)
+      await setCircle(circleRes)
+    } catch (e) {
+      alert("Cannot get circle data: " + e.message)
+    }
+  }
+
   useEffect(() => {
-    poll()
+    (async () => {
+      await getCircleReq()
+      getCircleTreeReq()
+    })()
   }, [])
 
   return (
@@ -214,7 +222,7 @@ const CircleTree = () => {
               }
             }}
             graphOptions={{
-              marginx: 15,
+              marginx: 100,
               marginy: 15,
               rankdir: "LR",
               ranksep: 55,

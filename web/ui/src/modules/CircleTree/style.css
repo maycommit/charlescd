@@ -1,10 +1,32 @@
 .circle-tree-sidebar {
   display: block;
   position: fixed;
-  height: 100vh;
+  height: calc(100vh - 56px);
   border-right: 1px solid #ccc;
   width: 100%;
-  max-width: 200px;
+  max-width: 300px;
+}
+
+.circle-tree-sidebar-header{
+  background-color: #212121;
+  padding: 5px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.circle-tree-sidebar-section {
+  background-color: #ccc;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 5px;
+}
+
+.circle-tree-sidebar-save {
+  border-radius: 0 !important;
+  position: absolute;
+  z-index: 99;
+  bottom: 0;
 }
 
 .circle-tree-container {
