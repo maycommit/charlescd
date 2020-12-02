@@ -166,7 +166,8 @@ const CircleTree = () => {
   const getCircleTreeReq = async () => {
     try {
       const circleTreeRes = await getCircleTree(name)
-      setElements(getElements(circle?.name, circleTreeRes?.nodes))
+      const newElements = getElements(circle?.name, circleTreeRes?.nodes)
+      setElements(newElements)
       setStage(stage => stage + 1)
       setTimeout(getCircleTreeReq, 3000)
     } catch (e) {
@@ -183,6 +184,10 @@ const CircleTree = () => {
       alert("Cannot get circle data: " + e.message)
     }
   }
+
+  useEffect(() => {
+
+  }, [elements])
 
   useEffect(() => {
     (async () => {
@@ -222,7 +227,7 @@ const CircleTree = () => {
               }
             }}
             graphOptions={{
-              marginx: 100,
+              marginx: 150,
               marginy: 15,
               rankdir: "LR",
               ranksep: 55,

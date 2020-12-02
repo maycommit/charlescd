@@ -24,7 +24,7 @@ const Resource = ({ node }: any) => {
       }}
     >
       <div style={{ fontWeight: "bold" }}>{node.label}</div>
-      <div style={{ fontSize: "10px" }}>{node.meta.kind}</div>
+      <div style={{ fontSize: "10px" }}>{node.meta.creationTimestamp}</div>
 
       {health && health?.status !== "Healthy" && (<div className="circle-tree-node-error">{health?.message}</div>)}
     </div>

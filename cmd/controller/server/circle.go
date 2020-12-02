@@ -35,8 +35,9 @@ func (s *GRPCServer) CircleTree(ctx context.Context, in *circlepb.Circle) (*circ
 				node := circlepb.ResourceNode{}
 
 				node.Ref = &circlepb.ResourceStatus{
-					Kind: resource.Ref.Kind,
-					Name: resource.Ref.Name,
+					Kind:              resource.Ref.Kind,
+					Name:              resource.Ref.Name,
+					CreationTimestamp: resource.CreationTimestamp.String(),
 				}
 
 				var status *health.HealthStatus
