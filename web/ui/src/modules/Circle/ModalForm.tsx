@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Col, Row, Button, Form, FormGroup, Label, Input, FormText, Modal, ModalHeader, ModalBody, ModalFooter, Alert } from 'reactstrap';
-import { createCircle } from '../../core/api/circle';
+import { Button, Form, FormGroup, Label, Input, Modal, ModalHeader, ModalBody, ModalFooter} from 'reactstrap';
 
 const CircleForm = ({ onSubmit, toggle, circle, modal }: any) => {
   const [name, setName] = useState('')

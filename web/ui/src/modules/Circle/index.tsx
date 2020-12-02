@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Container, Button } from 'reactstrap'
 import ModalForm from './ModalForm'
 import List from './List'
-import { createCircle, deploy, getCircles } from '../../core/api/circle'
-import { getProjects } from '../../core/api/project'
+import { createCircle, getCircles } from '../../core/api/circle'
 
 const Circle = () => {
   const [modal, setModal] = useState(false);

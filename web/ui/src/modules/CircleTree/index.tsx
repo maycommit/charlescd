@@ -1,12 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom';
-import { DagreReact, Rect, RecursivePartial, NodeOptions, EdgeOptions, Size, ReportSize, ValueCache } from 'dagre-reactjs'
+import { DagreReact, RecursivePartial, NodeOptions, EdgeOptions } from 'dagre-reactjs'
 import nodes from './nodes'
 import { Alert } from 'reactstrap';
 import { getCircle, getCircleTree } from '../../core/api/circle';
 import Sidebar from './Sidebar'
 import './style.css'
-
 
 type ElementsState = {
   nodes: Array<RecursivePartial<NodeOptions>>;
@@ -51,6 +50,7 @@ const getEdges = (projectId: string, resources: any[]) => {
 
   return allEdges
 }
+
 
 
 const getResources = (resources: any[]) => {
@@ -139,12 +139,16 @@ const getElements = (circleName: string, nodes: any[]): ElementsState => {
       labelType: "project",
     }
 
+
+
     let newProjectCircleEdge = {
       from: `circle-${circleName}`,
       to: projectNodeID,
     }
 
     nod = [...nod, ...getResources(nodes[i]?.resources), projectNode, circleNode]
+
+    nod = nod.sort((a, b) => a.id.localeCompare(b.id))
     edges = [...edges, ...getEdges(projectNodeID, nodes[i]?.resources), newProjectCircleEdge]
   }
 
@@ -163,38 +167,46 @@ const CircleTree = () => {
   const [stage, setStage] = useState(0)
   const [exception, setException] = useState("")
 
-  const getCircleTreeReq = async () => {
-    try {
-      const circleTreeRes = await getCircleTree(name)
-      const newElements = getElements(circle?.name, circleTreeRes?.nodes)
-      setElements(newElements)
-      setStage(stage => stage + 1)
-      setTimeout(getCircleTreeReq, 3000)
-    } catch (e) {
-      setException('Cannot get circle resource tree: ' + e.message)
-    }
+  const getCircleTreeReq = useCallback(
+    async () => {
+      try {
+        const circleTreeRes = await getCircleTree(name)
+        const newElements = getElements(circle?.name, circleTreeRes?.nodes)
+        setElements(newElements)
+        setStage(stage => stage + 1)
+        setTimeout(getCircleTreeReq, 5000)
+      } catch (e) {
+        setException('Cannot get circle resource tree: ' + e.message)
+      }
+    },
+    [circle, name],
+  )
 
-  }
-
-  const getCircleReq = async () => {
+  const getCircleReq = useCallback(
+    async () => {
     try {
       const circleRes = await getCircle(name)
-      await setCircle(circleRes)
+      setCircle(circleRes)
     } catch (e) {
       alert("Cannot get circle data: " + e.message)
     }
-  }
+  },
+  [name]
+  )
 
   useEffect(() => {
-
-  }, [elements])
-
-  useEffect(() => {
-    (async () => {
-      await getCircleReq()
+    if (circle) {
       getCircleTreeReq()
-    })()
-  }, [])
+    }
+  }, [circle, getCircleTreeReq] )
+
+  useEffect(() => {
+    if (circle) {
+      return
+    }
+    getCircleReq()
+  }, [getCircleReq, circle])
+
 
   return (
     <>

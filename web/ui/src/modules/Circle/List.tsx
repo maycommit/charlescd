@@ -1,39 +1,38 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom';
-import { Col, Row, Popover, PopoverHeader, PopoverBody, ListGroup, ListGroupItem } from 'reactstrap'
+import { Col, Row } from 'reactstrap'
 import {
-  Card, Button, CardHeader, CardFooter, CardBody,
-  CardTitle, CardText
+  Card, CardHeader, CardFooter, CardBody,
 } from 'reactstrap';
 import './style.css'
 
-const PopoverItem = ({ id, title, children }: any) => {
-  const [popoverOpen, setPopoverOpen] = useState(false);
+// const PopoverItem = ({ id, title, children }: any) => {
+//   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  const toggle = () => setPopoverOpen(!popoverOpen);
+//   const toggle = () => setPopoverOpen(!popoverOpen);
 
-  return (
-    <>
-      <Button id={`popover-${id}`} block>{title}</Button>
-      <Popover placement="right" isOpen={popoverOpen} target={`popover-${id}`} toggle={toggle}>
-        <PopoverHeader>{title}</PopoverHeader>
-        <PopoverBody>{children}</PopoverBody>
-      </Popover>
-    </>
-  )
-}
+//   return (
+//     <>
+//       <Button id={`popover-${id}`} block>{title}</Button>
+//       <Popover placement="right" isOpen={popoverOpen} target={`popover-${id}`} toggle={toggle}>
+//         <PopoverHeader>{title}</PopoverHeader>
+//         <PopoverBody>{children}</PopoverBody>
+//       </Popover>
+//     </>
+//   )
+// }
 
 const List = ({ circles, onDeploy, onEdit, onDelete }: any) => {
   return (
     <Row>
       {circles.map((circle: any) => (
-        <Col xs={3}>
+        <Col id={circle?.id} xs={3}>
           <Card>
             <CardHeader>
-              <Link to={`/circles/${circle?.name}`}>{circle?.name}</Link>
+              <Link id={circle?.name} to={`/circles/${circle?.name}`}>{circle?.name}</Link>
               <div className="card-header-icons">
-                <a onClick={() => onEdit(circle)}><i className="fas fa-pen"></i></a>
-                <a onClick={() => onDelete(circle)}><i className="fas fa-trash"></i></a>
+                <span onClick={() => onEdit(circle)}><i className="fas fa-pen"></i></span>
+                <span onClick={() => onDelete(circle)}><i className="fas fa-trash"></i></span>
               </div>
             </CardHeader>
             <CardBody>
