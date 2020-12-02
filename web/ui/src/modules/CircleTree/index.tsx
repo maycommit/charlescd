@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom';
 import { DagreReact, RecursivePartial, NodeOptions, EdgeOptions } from 'dagre-reactjs'
+import { UncontrolledReactSVGPanZoom } from 'react-svg-pan-zoom';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import nodes from './nodes'
 import { Alert } from 'reactstrap';
 import { getCircle, getCircleTree } from '../../core/api/circle';
@@ -16,10 +18,10 @@ const DEFAULT_NODE_CONFIG = {
   styles: {
     node: {
       padding: {
-        top: 10,
-        bottom: 10,
-        left: 10,
-        right: 10
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0
       }
     },
     shape: {},
@@ -163,12 +165,14 @@ const getElements = (circleName: string, nodes: any[]): ElementsState => {
 
 
 const CircleTree = () => {
-  const containerRef = useRef<any>(null)
+  const containerRef = useRef<any>()
+  const viewer = useRef<any>()
   const { name } = useParams<any>()
   const [circle, setCircle] = useState<any>({})
   const [elements, setElements] = useState<ElementsState>({ nodes: [], edges: [] })
   const [stage, setStage] = useState(0)
   const [exception, setException] = useState("")
+  const [size, setSize] = useState<any>({ width: 0, height: 0 })
 
   const getCircleTreeReq = useCallback(
     async () => {
@@ -187,21 +191,21 @@ const CircleTree = () => {
 
   const getCircleReq = useCallback(
     async () => {
-    try {
-      const circleRes = await getCircle(name)
-      setCircle(circleRes)
-    } catch (e) {
-      alert("Cannot get circle data: " + e.message)
-    }
-  },
-  [name]
+      try {
+        const circleRes = await getCircle(name)
+        setCircle(circleRes)
+      } catch (e) {
+        alert("Cannot get circle data: " + e.message)
+      }
+    },
+    [name]
   )
 
   useEffect(() => {
     if (circle) {
       getCircleTreeReq()
     }
-  }, [circle, getCircleTreeReq] )
+  }, [circle, getCircleTreeReq])
 
   useEffect(() => {
     if (circle) {
@@ -209,6 +213,12 @@ const CircleTree = () => {
     }
     getCircleReq()
   }, [getCircleReq, circle])
+
+  useEffect(() => {
+    setTimeout(() => {
+      viewer?.current?.fitToViewer()
+    }, 0)
+  }, [size])
 
 
   return (
@@ -222,36 +232,66 @@ const CircleTree = () => {
             {exception}
           </Alert>
         )}
-        <svg id="schedule" width="100%" height="100%">
-          <DagreReact
-            nodes={elements.nodes}
-            edges={elements.edges}
-            defaultNodeConfig={DEFAULT_NODE_CONFIG}
-            customNodeLabels={{
-              "resource": {
-                renderer: nodes.Resource,
-                html: true
-              },
-              "project": {
-                renderer: nodes.Project,
-                html: true
-              },
-              "circle": {
-                renderer: nodes.Circle,
-                html: true
-              }
-            }}
-            graphOptions={{
-              marginx: 150,
-              marginy: 15,
-              rankdir: "LR",
-              ranksep: 55,
-              nodesep: 15
-            }}
-            stage={stage}
-          />
-        </svg>
-      </div>
+        <div style={{ height: "100%" }}>
+          <AutoSizer>
+            {({ height, width }: any) => (
+              <UncontrolledReactSVGPanZoom
+                width={width}
+                height={height}
+                tool="pan"
+                background="#fff"
+                detectAutoPan={false}
+                miniatureProps={{
+                  position: 'none',
+                  background: '#fff',
+                  width: 100,
+                  height: 100,
+                }}
+                toolbarProps={{
+                  position: 'none',
+                  SVGAlignX: undefined,
+                  SVGAlignY: undefined,
+                }}
+                ref={viewer}
+              >
+                <svg id="schedule" width={size.width} height={size.height}>
+                  <DagreReact
+                    nodes={elements.nodes}
+                    edges={elements.edges}
+                    defaultNodeConfig={DEFAULT_NODE_CONFIG}
+                    customNodeLabels={{
+                      "resource": {
+                        renderer: nodes.Resource,
+                        html: true
+                      },
+                      "project": {
+                        renderer: nodes.Project,
+                        html: true
+                      },
+                      "circle": {
+                        renderer: nodes.Circle,
+                        html: true
+                      }
+                    }}
+
+                    graphLayoutComplete={(width, height) => {
+                      setSize({ width, height });
+                    }}
+                    graphOptions={{
+                      marginx: 150,
+                      marginy: 15,
+                      rankdir: "LR",
+                      ranksep: 55,
+                      nodesep: 15
+                    }}
+                    stage={stage}
+                  />
+                </svg>
+              </UncontrolledReactSVGPanZoom>
+            )}
+          </AutoSizer>
+        </div>
+      </div >
     </>
   )
 }

@@ -30,9 +30,9 @@
 }
 
 .circle-tree-container {
-  width: calc(100vw - 200px);
+  width: calc(100vw - 300px);
   height: calc(100vh - 56px);
-  margin-left: 200px;
+  margin-left: 300px;
 }
 
 .circle-tree-node {
