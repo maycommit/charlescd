@@ -41,9 +41,22 @@ type CircleDestination struct {
 	Namespace string `json:"namespace"`
 }
 
+type Segment struct {
+	Key       string `json:"key"`
+	Condition string `json:"condition"`
+	Value     string `json:"value"`
+}
+
+type Environment struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type CircleSpec struct {
-	Release     CircleRelease     `json:"release"`
-	Destination CircleDestination `json:"destination"`
+	Release      CircleRelease     `json:"release"`
+	Destination  CircleDestination `json:"destination"`
+	Environments []Environment     `json:"environments"`
+	Segments     []Segment         `json:"segments"`
 }
 
 type ResourceHealth struct {

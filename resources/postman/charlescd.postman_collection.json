@@ -12,7 +12,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"name\": \"qa\",\n    \"segments\": [\n        {\n            \"key\": \"username\",\n            \"condition\": \"=\",\n            \"value\": \"maycon@gmail.com\"\n        }\n    ],\n    \"environments\": [\n        {\n            \"key\": \"ACCOUNT\",\n            \"value\": \"xxxx\"\n        }\n    ],\n    \"resources\": [\n        {\n            \"releaseName\": \"first-release\",\n            \"tag\": \"latest\",\n            \"project\": {\n                \"name\": \"argocd-example-apps\",\n                \"repository\": \"https://github.com/argoproj/argocd-example-apps\",\n                \"token\": \"\",\n                \"paths\": [\n                    \"guestbook\"\n                ]\n            }\n        }\n    ]\n}",
+					"raw": "{\n    \"name\": \"qa\",\n    \"segments\": [\n        {\n            \"key\": \"email\",\n            \"condition\": \"=\",\n            \"value\": \"mail@mail.com\"\n        }\n    ],\n    \"environments\": [\n        { \"key\": \"API\", \"value\": \"http://service:8080\" }\n    ],\n    \"release\": {\n        \"name\": \"release-charles-v1\",\n        \"tag\": \"latest\",\n        \"projects\": [\n            {\n                \"name\": \"argocd-example-apps\",\n                \"repoUrl\": \"https://github.com/maycommit/argocd-example-apps\",\n                \"path\": \"guestbook\"\n            }\n        ]\n    },\n    \"destination\": {\n        \"namespace\": \"default\"\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -59,6 +59,70 @@
 					"port": "8080",
 					"path": [
 						"circles"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get circle",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"QA\",\n    \"segments\": [\n        {\n            \"key\": \"username\",\n            \"condition\": \"=\",\n            \"value\": \"maycon@gmail.com\"\n        }\n    ],\n    \"environments\": {\n        \"ACCOUNT\": \"xxxx\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/circles",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"circles"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get circle tree",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"QA\",\n    \"segments\": [\n        {\n            \"key\": \"username\",\n            \"condition\": \"=\",\n            \"value\": \"maycon@gmail.com\"\n        }\n    ],\n    \"environments\": {\n        \"ACCOUNT\": \"xxxx\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/circles/qa/tree",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"circles",
+						"qa",
+						"tree"
 					]
 				}
 			},

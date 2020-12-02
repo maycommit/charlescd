@@ -6,7 +6,7 @@ GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 GOTOOL=$(GOCMD) tool
 
-CMD_OPERATOR=cmd/operator/*.go
+CMD_MANAGER=cmd/manager/*.go
 CMD_CONTROLLER=cmd/controller/*.go
 
 DIST_PATH=dist
@@ -20,4 +20,4 @@ start-controller:
 				$(GORUN) $(CMD_CONTROLLER)
 
 start-manager:
-				$(GORUN) $(CMD_CONTROLLER)
+				$(GORUN) $(CMD_MANAGER)

@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 
 	circlepb "charlescd/pkg/grpc/circle"
 
@@ -13,8 +12,6 @@ import (
 )
 
 func (s *GRPCServer) CircleTree(ctx context.Context, in *circlepb.Circle) (*circlepb.CircleTreeResponse, error) {
-	fmt.Println("TREM QUERENDO")
-
 	circle, err := s.CircleClientset.CircleV1alpha1().Circles(in.Namespace).Get(context.TODO(), in.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -35,15 +32,11 @@ func (s *GRPCServer) CircleTree(ctx context.Context, in *circlepb.Circle) (*circ
 			cl := *s.ClusterCache
 
 			cl.IterateHierarchy(resKey, func(resource *cache.Resource, namespaceResources map[kube.ResourceKey]*cache.Resource) {
-
-				k := resource.ResourceKey()
 				node := circlepb.ResourceNode{}
 
-				node.ResourceStatus = &circlepb.ResourceStatus{
-					Group:   &k.Group,
-					Version: &resource.ResourceVersion,
-					Kind:    &resource.Ref.Kind,
-					Name:    &resource.Ref.Name,
+				node.Ref = &circlepb.ResourceStatus{
+					Kind: resource.Ref.Kind,
+					Name: resource.Ref.Name,
 				}
 
 				var status *health.HealthStatus
@@ -53,7 +46,7 @@ func (s *GRPCServer) CircleTree(ctx context.Context, in *circlepb.Circle) (*circ
 
 				if status != nil {
 					statusStr := string(status.Status)
-					node.ResourceStatus.Health = &circlepb.ResourceHealth{
+					node.Ref.Health = &circlepb.ResourceHealth{
 						Status:  &statusStr,
 						Message: &status.Message,
 					}

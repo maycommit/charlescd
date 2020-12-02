@@ -20,6 +20,26 @@ spec:
             spec:
               type: object
               properties:
+                environments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                      value:
+                        type: string
+                segments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                      condition:
+                        type: string
+                      value:
+                        type: string
                 destination:
                   type: object
                   properties:

@@ -63,7 +63,12 @@ func main() {
 		UnimplementedCircleServiceServer: circlepb.UnimplementedCircleServiceServer{},
 	})
 
-	go s.Serve(lis)
+	go func() {
+		log.Println("Start grpc server...")
+		if err := s.Serve(lis); err != nil {
+			log.Fatalln(err)
+		}
+	}()
 
 	ticker := time.NewTicker(3 * time.Second)
 	for {

@@ -52,11 +52,11 @@ func (p Project) GetGCMark(key kube.ResourceKey) string {
 }
 
 type Circle struct {
-	Name        string                     `json:"name"`
-	Release     v1alpha1.CircleRelease     `json:"release"`
-	Destination v1alpha1.CircleDestination `json:"destination"`
-	Projects    []v1alpha1.ProjectStatus   `json:"projects"`
-	Tree        json.RawMessage            `json:"tree"`
+	Name         string                     `json:"name"`
+	Release      v1alpha1.CircleRelease     `json:"release"`
+	Destination  v1alpha1.CircleDestination `json:"destination"`
+	Segments     []v1alpha1.Segment         `json:"segments"`
+	Environments []v1alpha1.Environment     `json:"environments"`
 }
 
 var Resource = schema.GroupVersionResource{
@@ -77,8 +77,10 @@ func CreateCircle(client circleclientset.Interface, data io.ReadCloser) error {
 			Name: newCircle.Name,
 		},
 		Spec: v1alpha1.CircleSpec{
-			Release:     newCircle.Release,
-			Destination: newCircle.Destination,
+			Release:      newCircle.Release,
+			Destination:  newCircle.Destination,
+			Segments:     newCircle.Segments,
+			Environments: newCircle.Environments,
 		},
 	}
 
@@ -109,44 +111,47 @@ func ListCircles(client circleclientset.Interface) ([]Circle, error) {
 
 	for _, circle := range list.Items {
 		circles = append(circles, Circle{
-			Name:        circle.GetName(),
-			Release:     circle.Spec.Release,
-			Destination: circle.Spec.Destination,
-			Projects:    circle.Status.Projects,
+			Name:         circle.GetName(),
+			Release:      circle.Spec.Release,
+			Destination:  circle.Spec.Destination,
+			Segments:     circle.Spec.Segments,
+			Environments: circle.Spec.Environments,
 		})
 	}
 
 	return circles, nil
 }
 
-func GetCircle(client circleclientset.Interface, grpcClient circlepb.CircleServiceClient, name string) (Circle, error) {
+func GetCircle(client circleclientset.Interface, name string) (Circle, error) {
 	circle, err := client.CircleV1alpha1().Circles("default").Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return Circle{}, err
 	}
 
+	return Circle{
+		Name:         circle.GetName(),
+		Release:      circle.Spec.Release,
+		Destination:  circle.Spec.Destination,
+		Environments: circle.Spec.Environments,
+		Segments:     circle.Spec.Segments,
+	}, nil
+}
+
+func GetCircleTree(client circleclientset.Interface, grpcClient circlepb.CircleServiceClient, name string) (json.RawMessage, error) {
 	tree, err := grpcClient.CircleTree(context.Background(), &circlepb.Circle{
 		Name:      name,
 		Namespace: "default",
 	})
 	if err != nil {
-		return Circle{}, err
+		return json.RawMessage{}, err
 	}
 
 	b, err := json.Marshal(tree)
 	if err != nil {
-		return Circle{}, err
+		return json.RawMessage{}, err
 	}
 
-	fmt.Println(tree.Nodes)
-
-	return Circle{
-		Name:        circle.GetName(),
-		Release:     circle.Spec.Release,
-		Destination: circle.Spec.Destination,
-		Projects:    circle.Status.Projects,
-		Tree:        b,
-	}, nil
+	return b, nil
 }
 
 func Deploy(client circleclientset.Interface, name string, data io.ReadCloser) error {

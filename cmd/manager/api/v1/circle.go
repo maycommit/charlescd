@@ -36,10 +36,25 @@ func CircleFindAll(client circleclientset.Interface) func(w http.ResponseWriter,
 	}
 }
 
-func CircleShow(client circleclientset.Interface, grpcClient circlepb.CircleServiceClient) func(w http.ResponseWriter, r *http.Request) {
+func CircleShow(client circleclientset.Interface) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		circles, err := circle.GetCircle(client, grpcClient, vars["name"])
+		circles, err := circle.GetCircle(client, vars["name"])
+		if err != nil {
+			w.Header().Add("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
+			return
+		}
+
+		w.Header().Add("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(circles)
+	}
+}
+
+func CircleTree(client circleclientset.Interface, grpcClient circlepb.CircleServiceClient) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		circles, err := circle.GetCircleTree(client, grpcClient, vars["name"])
 		if err != nil {
 			w.Header().Add("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})

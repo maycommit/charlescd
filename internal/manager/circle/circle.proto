@@ -8,21 +8,13 @@ service CircleService {
 
 message ResourceHealth {
   optional string status = 1;
-  
   optional string message = 2;
 }
 
 message ResourceStatus {
-  optional string group = 1;
-
-  optional string version = 2;
-
-  optional string kind = 3;
-
-  optional string name = 4;
-
-  optional string status = 5;
-
+  string kind = 3;
+  string name = 4;
+  string creationTimestamp = 7;
   optional ResourceHealth health = 6;
 }
 
@@ -33,7 +25,7 @@ message ResourceParent {
 }
 
 message ResourceNode {
-  optional ResourceStatus resourceStatus = 1;
+  optional ResourceStatus ref = 1;
   repeated ResourceParent parents = 2;
 }
 
