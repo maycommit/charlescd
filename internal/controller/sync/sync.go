@@ -4,6 +4,7 @@ import (
 	"charlescd/internal/controller/repository"
 	"charlescd/pkg/apis/circle/v1alpha1"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -30,6 +31,8 @@ import (
 	networkingv1beta1 "istio.io/api/networking/v1beta1"
 	"istio.io/client-go/pkg/apis/networking/v1beta1"
 	istioclient "istio.io/client-go/pkg/clientset/versioned/typed/networking/v1beta1"
+
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
@@ -288,6 +291,9 @@ func (syncConfig SyncConfig) Do(circleName string, manifests []*unstructured.Uns
 
 			for projectName := range projectMap {
 				vs := &v1beta1.VirtualService{
+					TypeMeta: metav1.TypeMeta{
+						Kind: "VirtualService",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: projectName,
 					},
@@ -307,10 +313,38 @@ func (syncConfig SyncConfig) Do(circleName string, manifests []*unstructured.Uns
 					},
 				}
 
-				_, err := syncConfig.IstioClient.VirtualServices(syncConfig.Namespace).Create(context.TODO(), vs, metav1.CreateOptions{})
+				b, err := json.Marshal(vs)
 				if err != nil {
 					return err
 				}
+
+				fmt.Println("------------VSB---------", string(b))
+
+				var un *unstructured.Unstructured
+				err = json.Unmarshal(b, &un)
+				if err != nil {
+					return err
+				}
+				fmt.Println("------------VSJ---------", un.Object)
+
+				_, err = syncConfig.IstioClient.VirtualServices(syncConfig.Namespace).Create(context.TODO(), vs, metav1.CreateOptions{})
+				if err != nil && k8sErrors.IsAlreadyExists(err) {
+					return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+
+						vs, err := syncConfig.IstioClient.VirtualServices(syncConfig.Namespace).Get(context.TODO(), projectName, metav1.GetOptions{})
+						if err != nil {
+							return err
+						}
+
+						_, err = syncConfig.IstioClient.VirtualServices(syncConfig.Namespace).Update(context.TODO(), vs, metav1.UpdateOptions{})
+						return err
+					})
+				}
+
+				if err != nil {
+					return err
+				}
+
 			}
 
 		}
