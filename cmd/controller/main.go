@@ -4,28 +4,66 @@ import (
 	"charlescd/internal/controller/sync"
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"path/filepath"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/engine"
 	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2/klogr"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
 	"charlescd/cmd/controller/server"
+	"charlescd/pkg/apis/circle/v1alpha1"
 	circleclientset "charlescd/pkg/client/clientset/versioned"
+	circleinformer "charlescd/pkg/client/informers/externalversions"
 	circlepb "charlescd/pkg/grpc/circle"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	namespace = "default"
 )
+
+type circleState struct {
+	manifests   []*unstructured.Unstructured
+	synced      bool
+	forDeletion bool
+}
+
+func getInitialCircleState(circleClient circleclientset.Interface) (map[string]circleState, error) {
+	circles := map[string]circleState{}
+
+	circleList, err := circleClient.CircleV1alpha1().Circles(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, item := range circleList.Items {
+		circleName := item.GetName()
+
+		manifests, err := sync.GetManifests(item)
+		if err != nil {
+			return nil, err
+		}
+
+		circles[circleName] = circleState{
+			manifests: manifests,
+			synced:    false,
+		}
+	}
+
+	return circles, nil
+}
 
 func main() {
 	klogr := klogr.New()
@@ -44,6 +82,7 @@ func main() {
 
 	kubeClient := dynamic.NewForConfigOrDie(config)
 	circleClient := circleclientset.NewForConfigOrDie(config)
+	circleInformerFactory := circleinformer.NewSharedInformerFactory(circleClient, 0)
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		log.Fatal(err)
@@ -71,32 +110,86 @@ func main() {
 
 	}()
 
-	ticker := time.NewTicker(3 * time.Second)
+	circles, err := getInitialCircleState(circleClient)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	circleInformer := circleInformerFactory.Circle().V1alpha1().Circles().Informer()
+	circleInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			circle := obj.(*v1alpha1.Circle)
+			circleName := circle.GetName()
+			manifests, err := sync.GetManifests(*circle)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			circles[circleName] = circleState{
+				manifests: manifests,
+				synced:    false,
+			}
+		},
+		UpdateFunc: func(old, new interface{}) {
+			_ = old.(*v1alpha1.Circle)
+			newCircle := new.(*v1alpha1.Circle)
+
+			circleName := newCircle.GetName()
+			manifests, err := sync.GetManifests(*newCircle)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			circles[circleName] = circleState{
+				manifests: manifests,
+				synced:    false,
+			}
+			// TODO: Implement diff circles for change sync status
+		},
+		DeleteFunc: func(obj interface{}) {
+			circle := obj.(*v1alpha1.Circle)
+
+			circles[circle.GetName()] = circleState{
+				manifests:   []*unstructured.Unstructured{},
+				synced:      false,
+				forDeletion: true,
+			}
+		},
+	})
+
+	stopCh := make(chan struct{})
+
+	go circleInformer.Run(stopCh)
+
+	gitOpsEngine := engine.NewEngine(config, clusterCache)
+
+	syncConfig := sync.SyncConfig{
+		ClusterCache: clusterCache,
+		KubeClient:   kubeClient,
+		Config:       config,
+		GitopsEngine: gitOpsEngine,
+		Client:       circleClient.CircleV1alpha1().Circles(namespace),
+		Disco:        disco,
+		Namespace:    namespace,
+		Prune:        false,
+		Log:          klogr,
+	}
+
+	// ticker := time.NewTicker(3 * time.Second)
 	for {
-		select {
-		case <-ticker.C:
-			list, err := circleClient.CircleV1alpha1().Circles(namespace).List(context.TODO(), metav1.ListOptions{})
+		time.Sleep(2 * time.Second)
+		for circleName, state := range circles {
+			if state.synced {
+				continue
+			}
+			fmt.Println("-----STATE----", state)
+			err := syncConfig.Do(circleName, state.manifests, state.forDeletion)
 			if err != nil {
 				log.Fatalln(err)
 			}
 
-			for _, obj := range list.Items {
-				syncConfig := sync.SyncConfig{
-					ClusterCache: clusterCache,
-					KubeClient:   kubeClient,
-					Config:       config,
-					Client:       circleClient.CircleV1alpha1().Circles(namespace),
-					Disco:        disco,
-					Circle:       &obj,
-					Namespace:    namespace,
-					Prune:        true,
-					Log:          klogr,
-				}
-				err := sync.Start(syncConfig)
-				if err != nil {
-					log.Fatalln(err)
-				}
+			if state.forDeletion {
+				delete(circles, circleName)
 			}
 		}
+
 	}
 }

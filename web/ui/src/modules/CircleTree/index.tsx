@@ -60,7 +60,7 @@ const getResources = (resources: any[]) => {
     let newRes: NodeOptions = {
       id: `${resource?.ref?.kind}-${resource?.ref?.name}`,
       label: `${resource?.ref?.kind}: ${resource?.ref?.name}`,
-      shape: "circle",
+      shape: "rect",
       styles: {
         shape: {
           styles: { fill: "#fff", stroke: "#000", strokeWidth: "0" }
@@ -120,11 +120,13 @@ const getElements = (circleName: string, nodes: any[]): ElementsState => {
     labelType: "circle",
   }
 
+  nod = [circleNode]
+
   for (let i = 0; i < nodes.length; i++) {
     let projectNodeID = `project-${nodes[i]?.name}`
     let projectNode = {
       id: projectNodeID,
-      label: `project ${nodes[i]?.name}`,
+      label: `Project ${nodes[i]?.name}`,
       styles: {
         shape: {
           styles: { fill: "#fff", stroke: "#000", strokeWidth: "0" }
@@ -151,7 +153,7 @@ const getElements = (circleName: string, nodes: any[]): ElementsState => {
       to: projectNodeID,
     }
 
-    nod = [...nod, ...getResources(nodes[i]?.resources), projectNode, circleNode]
+    nod = [...nod, ...getResources(nodes[i]?.resources), projectNode]
     nod = nod.sort((a, b) => a.label.localeCompare(b.label))
     edges = [...edges, ...getEdges(projectNodeID, nodes[i]?.resources), newProjectCircleEdge]
     edges = edges.sort((a, b) => a.to.localeCompare(b.to))
@@ -178,7 +180,7 @@ const CircleTree = () => {
     async () => {
       try {
         const circleTreeRes = await getCircleTree(name)
-        const newElements = getElements(circle?.name, circleTreeRes?.nodes)
+        const newElements = getElements(name, circleTreeRes?.nodes)
         setElements(newElements)
         setStage(stage => stage + 1)
         setTimeout(getCircleTreeReq, 2000)
@@ -214,12 +216,6 @@ const CircleTree = () => {
     getCircleReq()
   }, [getCircleReq, circle])
 
-  useEffect(() => {
-    setTimeout(() => {
-      viewer?.current?.fitToViewer()
-    }, 0)
-  }, [size])
-
 
   return (
     <>
@@ -254,7 +250,7 @@ const CircleTree = () => {
                 }}
                 ref={viewer}
               >
-                <svg id="schedule" width={size.width} height={size.height}>
+                <svg id="schedule" width={width} height={height}>
                   <DagreReact
                     nodes={elements.nodes}
                     edges={elements.edges}
@@ -272,10 +268,6 @@ const CircleTree = () => {
                         renderer: nodes.Circle,
                         html: true
                       }
-                    }}
-
-                    graphLayoutComplete={(width, height) => {
-                      setSize({ width, height });
                     }}
                     graphOptions={{
                       marginx: 150,
