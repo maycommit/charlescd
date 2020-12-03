@@ -63,6 +63,11 @@ spec:
                             type: string
                           path:
                             type: string
+                router:
+                  type: object
+                  properties:
+                    routerType:
+                      type: string
             status:
               type: object
               properties:

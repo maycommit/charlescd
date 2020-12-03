@@ -25,10 +25,18 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+type Helm struct {
+}
+
+type CircleTemplate struct {
+	Helm *Helm `json:"helm"`
+}
+
 type CircleProject struct {
-	Name    string `json:"name"`
-	RepoURL string `json:"repoUrl"`
-	Path    string `json:"path"`
+	Name     string          `json:"name"`
+	RepoURL  string          `json:"repoUrl"`
+	Path     string          `json:"path"`
+	Template *CircleTemplate `json:"template"`
 }
 
 type CircleRelease struct {
@@ -52,11 +60,17 @@ type Environment struct {
 	Value string `json:"value"`
 }
 
+type Router struct {
+	RouterType string `json:"routerType"`
+}
+
 type CircleSpec struct {
+	ID           string            `json:"id"`
 	Release      *CircleRelease    `json:"release,omitempty"`
 	Destination  CircleDestination `json:"destination,omitempty"`
 	Environments []Environment     `json:"environments,omitempty"`
 	Segments     []Segment         `json:"segments,omitempty"`
+	Router       Router            `json:"router"`
 }
 
 type ResourceHealth struct {

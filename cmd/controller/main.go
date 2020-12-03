@@ -27,6 +27,8 @@ import (
 	circleinformer "charlescd/pkg/client/informers/externalversions"
 	circlepb "charlescd/pkg/grpc/circle"
 
+	istioclient "istio.io/client-go/pkg/clientset/versioned"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -81,6 +83,7 @@ func main() {
 	}
 
 	kubeClient := dynamic.NewForConfigOrDie(config)
+	istioClient := istioclient.NewForConfigOrDie(config)
 	circleClient := circleclientset.NewForConfigOrDie(config)
 	circleInformerFactory := circleinformer.NewSharedInformerFactory(circleClient, 0)
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
@@ -160,10 +163,19 @@ func main() {
 	go circleInformer.Run(stopCh)
 
 	gitOpsEngine := engine.NewEngine(config, clusterCache)
+	stopEngine, err := gitOpsEngine.Run()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
 
 	syncConfig := sync.SyncConfig{
+		Ctx:          ctx,
 		ClusterCache: clusterCache,
 		KubeClient:   kubeClient,
+		IstioClient:  istioClient.NetworkingV1beta1(),
 		Config:       config,
 		GitopsEngine: gitOpsEngine,
 		Client:       circleClient.CircleV1alpha1().Circles(namespace),
@@ -171,6 +183,7 @@ func main() {
 		Namespace:    namespace,
 		Prune:        false,
 		Log:          klogr,
+		StopEngine:   stopEngine,
 	}
 
 	// ticker := time.NewTicker(3 * time.Second)

@@ -27,6 +27,10 @@ import (
 
 	circleInterface "charlescd/pkg/client/clientset/versioned/typed/circle/v1alpha1"
 
+	networkingv1beta1 "istio.io/api/networking/v1beta1"
+	"istio.io/client-go/pkg/apis/networking/v1beta1"
+	istioclient "istio.io/client-go/pkg/clientset/versioned/typed/networking/v1beta1"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
 )
@@ -45,15 +49,18 @@ type SyncResource struct {
 }
 
 type SyncConfig struct {
+	Ctx          context.Context
 	GitopsEngine engine.GitOpsEngine
 	ClusterCache cache.ClusterCache
 	Config       *rest.Config
 	KubeClient   dynamic.Interface
+	IstioClient  istioclient.NetworkingV1beta1Interface
 	Client       circleInterface.CircleInterface
 	Disco        discovery.DiscoveryInterface
 	Namespace    string
 	Prune        bool
 	Log          logr.Logger
+	StopEngine   engine.StopFunc
 }
 
 func ClusterCache(config *rest.Config, namespaces []string, log logr.Logger) cache.ClusterCache {
@@ -204,66 +211,112 @@ func (syncConfig SyncConfig) getResourceByGroupVersionAndKind(gv schema.GroupVer
 	return resource
 }
 
-func (syncConfig SyncConfig) Do(circleName string, manifests []*unstructured.Unstructured, isDeletionCircle bool) error {
-
-	_, err := syncConfig.GitopsEngine.Run()
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("--------MANIFESTS-------", manifests)
-
-	result, err := syncConfig.GitopsEngine.Sync(context.Background(), manifests, func(r *cache.Resource) bool {
+func (syncConfig SyncConfig) sync(circleName string, manifests []*unstructured.Unstructured) ([]common.ResourceSyncResult, error) {
+	return syncConfig.GitopsEngine.Sync(context.Background(), manifests, func(r *cache.Resource) bool {
 		return r.Info.(*resourceInfo).circleMark == circleName
 	}, "", syncConfig.Namespace, sync.WithOperationSettings(false, syncConfig.Prune, true, false), sync.WithLogr(syncConfig.Log))
-	if err != nil {
-		// syncConfig.Log.Error(err, "Failed to synchronize cluster state")
+}
 
-		return err
-	}
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "RESOURCE\tRESULT\n")
+func (syncConfig SyncConfig) prune(result []common.ResourceSyncResult) error {
+	// Delete resource manually with prune false
 	for _, res := range result {
-
-		// Delete resource manually with prune false
 		if res.Status == "PruneSkipped" {
 			gv := schema.GroupVersion{
 				Group:   res.ResourceKey.Group,
 				Version: res.Version,
 			}
 			resource := syncConfig.getResourceByGroupVersionAndKind(gv, res.ResourceKey.Kind)
-			fmt.Println("---------RESOURCE-------", resource)
 			gvr := gv.WithResource(resource)
 			err := syncConfig.KubeClient.Resource(gvr).Namespace(syncConfig.Namespace).Delete(context.Background(), res.ResourceKey.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
 		}
+	}
 
-		_, _ = fmt.Fprintf(w, "%s\t%s\n", res.ResourceKey.String(), res.Message)
+	return nil
+}
+
+func (syncConfig SyncConfig) printResources(result []common.ResourceSyncResult) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintf(w, "RESOURCE\tSTATUS\tSYNCPHASE\tRESULT\n")
+	for _, res := range result {
+
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", res.ResourceKey.String(), res.Status, res.SyncPhase, res.Message)
 	}
 	_ = w.Flush()
+}
 
-	if isDeletionCircle {
-		return nil
-	}
+func (syncConfig SyncConfig) Do(circleName string, manifests []*unstructured.Unstructured, isDeletionCircle bool) error {
 
-	projectMap, err := syncConfig.getProjectMap(result)
+	result, err := syncConfig.sync(circleName, manifests)
 	if err != nil {
 		return err
 	}
 
-	projectsStatus := []v1alpha1.ProjectStatus{}
-	for projectName, resources := range projectMap {
-		projectsStatus = append(projectsStatus, v1alpha1.ProjectStatus{
-			Name:      projectName,
-			Resources: resources,
-		})
+	err = syncConfig.prune(result)
+	if err != nil {
+		return err
 	}
 
-	if err := syncConfig.updateCircle(circleName, projectsStatus); err != nil {
-		return err
+	syncConfig.printResources(result)
+
+	if !isDeletionCircle {
+		projectMap, err := syncConfig.getProjectMap(result)
+		if err != nil {
+			return err
+		}
+
+		projectsHealth := true
+		projectsStatus := []v1alpha1.ProjectStatus{}
+		for projectName, resources := range projectMap {
+
+			for _, res := range resources {
+				if res.Health.Status != health.HealthStatusHealthy {
+					projectsHealth = false
+					break
+				}
+			}
+
+			projectsStatus = append(projectsStatus, v1alpha1.ProjectStatus{
+				Name:      projectName,
+				Resources: resources,
+			})
+		}
+
+		if projectsHealth {
+
+			for projectName := range projectMap {
+				vs := &v1beta1.VirtualService{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: projectName,
+					},
+					Spec: networkingv1beta1.VirtualService{
+						Hosts: []string{},
+						Http: []*networkingv1beta1.HTTPRoute{
+							{
+								Route: []*networkingv1beta1.HTTPRouteDestination{
+									{
+										Destination: &networkingv1beta1.Destination{
+											Host: "guestbook-ui",
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+
+				_, err := syncConfig.IstioClient.VirtualServices(syncConfig.Namespace).Create(context.TODO(), vs, metav1.CreateOptions{})
+				if err != nil {
+					return err
+				}
+			}
+
+		}
+
+		return syncConfig.updateCircle(circleName, projectsStatus)
+
 	}
 
 	return nil
