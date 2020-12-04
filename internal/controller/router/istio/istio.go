@@ -89,8 +89,6 @@ func (i IstioRouter) getNewVirtualService(project v1alpha1.ProjectStatus, circle
 		routerName: i.newRoute(routerName, circleID, fmt.Sprintf("%s-%s", project.Name, releaseName)),
 	}
 
-	fmt.Println("------------NEW ROUTE MAP -------------", routeMap)
-
 	return &v1beta1.VirtualService{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.istio.io/v1beta1",
@@ -124,8 +122,6 @@ func (i IstioRouter) getCurrentVirtualService(
 	hostName := fmt.Sprintf("%s-%s", project.Name, releaseName)
 	routerName := fmt.Sprintf("%s-router", hostName)
 	routeMap[routerName] = i.newRoute(routerName, circleID, hostName)
-
-	fmt.Println("------------CURRENT ROUTE MAP -------------", routeMap)
 
 	vs.Spec.Http = i.getRoutes(routeMap)
 	return vs
