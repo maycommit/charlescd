@@ -176,7 +176,7 @@ func (syncConfig SyncConfig) GetManifests(circle v1alpha1.Circle) ([]*unstructur
 	}
 
 	if IsCircleHealthy(circle) {
-		istioRouter := istio.NewIstioRouter(syncConfig.IstioClient)
+		istioRouter := istio.NewIstioRouter(syncConfig.IstioClient, syncConfig.ClusterCache)
 
 		virtualServices, err := istioRouter.GetVirtualServiceManifests(circle)
 		if err != nil {
