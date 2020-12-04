@@ -4,7 +4,6 @@ import (
 	"charlescd/internal/controller/sync"
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net"
 	"path/filepath"
@@ -28,44 +27,11 @@ import (
 	circlepb "charlescd/pkg/grpc/circle"
 
 	istioclient "istio.io/client-go/pkg/clientset/versioned"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	namespace = "default"
 )
-
-type circleState struct {
-	manifests   []*unstructured.Unstructured
-	synced      bool
-	forDeletion bool
-}
-
-func getInitialCircleState(circleClient circleclientset.Interface) (map[string]circleState, error) {
-	circles := map[string]circleState{}
-
-	circleList, err := circleClient.CircleV1alpha1().Circles(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, item := range circleList.Items {
-		circleName := item.GetName()
-
-		manifests, err := sync.GetManifests(item)
-		if err != nil {
-			return nil, err
-		}
-
-		circles[circleName] = circleState{
-			manifests: manifests,
-			synced:    false,
-		}
-	}
-
-	return circles, nil
-}
 
 func main() {
 	klogr := klogr.New()
@@ -113,55 +79,6 @@ func main() {
 
 	}()
 
-	circles, err := getInitialCircleState(circleClient)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	circleInformer := circleInformerFactory.Circle().V1alpha1().Circles().Informer()
-	circleInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			circle := obj.(*v1alpha1.Circle)
-			circleName := circle.GetName()
-			manifests, err := sync.GetManifests(*circle)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			circles[circleName] = circleState{
-				manifests: manifests,
-				synced:    false,
-			}
-		},
-		UpdateFunc: func(old, new interface{}) {
-			_ = old.(*v1alpha1.Circle)
-			newCircle := new.(*v1alpha1.Circle)
-
-			circleName := newCircle.GetName()
-			manifests, err := sync.GetManifests(*newCircle)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			circles[circleName] = circleState{
-				manifests: manifests,
-				synced:    false,
-			}
-			// TODO: Implement diff circles for change sync status
-		},
-		DeleteFunc: func(obj interface{}) {
-			circle := obj.(*v1alpha1.Circle)
-
-			circles[circle.GetName()] = circleState{
-				manifests:   []*unstructured.Unstructured{},
-				synced:      false,
-				forDeletion: true,
-			}
-		},
-	})
-
-	stopCh := make(chan struct{})
-
-	go circleInformer.Run(stopCh)
-
 	gitOpsEngine := engine.NewEngine(config, clusterCache)
 	stopEngine, err := gitOpsEngine.Run()
 	if err != nil {
@@ -186,20 +103,70 @@ func main() {
 		StopEngine:   stopEngine,
 	}
 
-	// ticker := time.NewTicker(3 * time.Second)
-	for {
-		time.Sleep(2 * time.Second)
-		for circleName, state := range circles {
-			if state.synced {
-				continue
+	circles, err := syncConfig.GetInitialCircleState()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	circleInformer := circleInformerFactory.Circle().V1alpha1().Circles().Informer()
+	circleInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			circle := obj.(*v1alpha1.Circle)
+			circleName := circle.GetName()
+			manifests, err := syncConfig.GetManifests(*circle)
+			if err != nil {
+				log.Fatalln(err)
 			}
-			fmt.Println("-----STATE----", state)
-			err := syncConfig.Do(circleName, state.manifests, state.forDeletion)
+			circles[circleName] = sync.CircleState{
+				Manifests: manifests,
+				Synced:    false,
+			}
+		},
+		UpdateFunc: func(old, new interface{}) {
+			_ = old.(*v1alpha1.Circle)
+			newCircle := new.(*v1alpha1.Circle)
+
+			circleName := newCircle.GetName()
+			manifests, err := syncConfig.GetManifests(*newCircle)
 			if err != nil {
 				log.Fatalln(err)
 			}
 
-			if state.forDeletion {
+			circles[circleName] = sync.CircleState{
+				Manifests: manifests,
+				Synced:    false,
+			}
+			// TODO: Implement diff circles for change sync status
+		},
+		DeleteFunc: func(obj interface{}) {
+			circle := obj.(*v1alpha1.Circle)
+
+			circles[circle.GetName()] = sync.CircleState{
+				Manifests:   []*unstructured.Unstructured{},
+				Synced:      false,
+				ForDeletion: true,
+			}
+		},
+	})
+
+	stopCh := make(chan struct{})
+
+	go circleInformer.Run(stopCh)
+
+	// ticker := time.NewTicker(3 * time.Second)
+	for {
+		time.Sleep(2 * time.Second)
+		for circleName, state := range circles {
+			if state.Synced {
+				continue
+			}
+
+			err := syncConfig.Do(circleName, state.Manifests, state.ForDeletion)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			if state.ForDeletion {
 				delete(circles, circleName)
 			}
 		}

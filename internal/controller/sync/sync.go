@@ -2,10 +2,11 @@ package sync
 
 import (
 	"charlescd/internal/controller/repository"
+	"charlescd/internal/controller/router/istio"
 	"charlescd/pkg/apis/circle/v1alpha1"
 	"context"
-	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"text/tabwriter"
 
@@ -28,11 +29,7 @@ import (
 
 	circleInterface "charlescd/pkg/client/clientset/versioned/typed/circle/v1alpha1"
 
-	networkingv1beta1 "istio.io/api/networking/v1beta1"
-	"istio.io/client-go/pkg/apis/networking/v1beta1"
 	istioclient "istio.io/client-go/pkg/clientset/versioned/typed/networking/v1beta1"
-
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
@@ -41,11 +38,18 @@ import (
 const (
 	circleAnnotation  = "charlescd.io/circle"
 	projectAnnotation = "charlescd.io/project"
+	routerAnnotation  = "charlescd.io/router"
 )
 
 type resourceInfo struct {
 	circleMark  string
 	projectMark string
+}
+
+type CircleState struct {
+	Manifests   []*unstructured.Unstructured
+	Synced      bool
+	ForDeletion bool
 }
 
 type SyncResource struct {
@@ -74,13 +78,14 @@ func ClusterCache(config *rest.Config, namespaces []string, log logr.Logger) cac
 			// store gc mark of every resource
 			circleMark := un.GetAnnotations()[circleAnnotation]
 			projectMark := un.GetAnnotations()[projectAnnotation]
+			routerMark := "charlescd.io/router"
 			info = &resourceInfo{
 				projectMark: un.GetAnnotations()[projectAnnotation],
 				circleMark:  un.GetAnnotations()[circleAnnotation],
 			}
 			// cache resources that has that mark to improve performance
 
-			cacheManifest = circleMark != "" && projectMark != ""
+			cacheManifest = (circleMark != "" && projectMark != "") || routerMark != ""
 			return
 		}),
 	)
@@ -109,14 +114,29 @@ func cloneAndOpenRepository(project v1alpha1.CircleProject) (*git.Repository, er
 	return r, nil
 }
 
-func GetManifests(circle v1alpha1.Circle) ([]*unstructured.Unstructured, error) {
+func IsCircleHealthy(circle v1alpha1.Circle) bool {
+	circleHealthy := true
+	for _, project := range circle.Status.Projects {
+		for _, res := range project.Resources {
+			if res.Health != nil && res.Health.Status != health.HealthStatusHealthy {
+				circleHealthy = false
+				break
+			}
+		}
+	}
+
+	return circleHealthy
+}
+
+func (syncConfig SyncConfig) GetManifests(circle v1alpha1.Circle) ([]*unstructured.Unstructured, error) {
 	manifests := []*unstructured.Unstructured{}
 
 	if circle.Spec.Release == nil {
 		return manifests, nil
 	}
 
-	projects := circle.Spec.Release.Projects
+	release := circle.Spec.Release
+	projects := release.Projects
 	for _, project := range projects {
 		r, err := cloneAndOpenRepository(project)
 		if err != nil {
@@ -147,12 +167,51 @@ func GetManifests(circle v1alpha1.Circle) ([]*unstructured.Unstructured, error) 
 			annotations[circleAnnotation] = circle.GetName()
 			annotations[projectAnnotation] = project.Name
 			newManifest.SetAnnotations(annotations)
+
+			manifestName := fmt.Sprintf("%s-%s", project.Name, release.Name)
+			newManifest.SetName(manifestName)
 		}
 
 		manifests = append(manifests, newManifests...)
 	}
 
+	if IsCircleHealthy(circle) {
+		istioRouter := istio.NewIstioRouter(syncConfig.IstioClient)
+
+		virtualServices, err := istioRouter.GetVirtualServiceManifests(circle)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		manifests = append(manifests, virtualServices...)
+	}
+
 	return manifests, nil
+}
+
+func (syncConfig SyncConfig) GetInitialCircleState() (map[string]CircleState, error) {
+	circles := map[string]CircleState{}
+
+	circleList, err := syncConfig.Client.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, item := range circleList.Items {
+		circleName := item.GetName()
+
+		manifests, err := syncConfig.GetManifests(item)
+		if err != nil {
+			return nil, err
+		}
+
+		circles[circleName] = CircleState{
+			Manifests: manifests,
+			Synced:    false,
+		}
+	}
+
+	return circles, nil
 }
 
 func (syncConfig SyncConfig) getProjectMap(result []common.ResourceSyncResult) (map[string][]v1alpha1.ResourceStatus, error) {
@@ -176,24 +235,25 @@ func (syncConfig SyncConfig) getProjectMap(result []common.ResourceSyncResult) (
 		var status *health.HealthStatus
 		var err error
 
-		if mapResourceKey[resKey] != nil {
+		if mapResourceKey[resKey] != nil && mapResourceKey[resKey].Resource != nil {
+			resource := mapResourceKey[resKey].Resource
 			status, err = health.GetResourceHealth(mapResourceKey[resKey].Resource, nil)
 			if err != nil {
 				return nil, err
 			}
-		}
 
-		if status != nil {
-			resourceStatus.Health = &v1alpha1.ResourceHealth{
-				Status:  status.Status,
-				Message: status.Message,
+			if status != nil {
+				resourceStatus.Health = &v1alpha1.ResourceHealth{
+					Status:  status.Status,
+					Message: status.Message,
+				}
 			}
-		}
 
-		if mapResourceKey[resKey] != nil {
-			resource := mapResourceKey[resKey].Resource
-			projectName := resource.GetAnnotations()[projectAnnotation]
-			projectMap[projectName] = append(projectMap[projectName], resourceStatus)
+			// TODO: Add router to projectMAP
+			if _, ok := resource.GetAnnotations()[routerAnnotation]; !ok {
+				projectName := resource.GetAnnotations()[projectAnnotation]
+				projectMap[projectName] = append(projectMap[projectName], resourceStatus)
+			}
 		}
 
 	}
@@ -270,83 +330,12 @@ func (syncConfig SyncConfig) Do(circleName string, manifests []*unstructured.Uns
 			return err
 		}
 
-		projectsHealth := true
 		projectsStatus := []v1alpha1.ProjectStatus{}
 		for projectName, resources := range projectMap {
-
-			for _, res := range resources {
-				if res.Health.Status != health.HealthStatusHealthy {
-					projectsHealth = false
-					break
-				}
-			}
-
 			projectsStatus = append(projectsStatus, v1alpha1.ProjectStatus{
 				Name:      projectName,
 				Resources: resources,
 			})
-		}
-
-		if projectsHealth {
-
-			for projectName := range projectMap {
-				vs := &v1beta1.VirtualService{
-					TypeMeta: metav1.TypeMeta{
-						Kind: "VirtualService",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: projectName,
-					},
-					Spec: networkingv1beta1.VirtualService{
-						Hosts: []string{},
-						Http: []*networkingv1beta1.HTTPRoute{
-							{
-								Route: []*networkingv1beta1.HTTPRouteDestination{
-									{
-										Destination: &networkingv1beta1.Destination{
-											Host: "guestbook-ui",
-										},
-									},
-								},
-							},
-						},
-					},
-				}
-
-				b, err := json.Marshal(vs)
-				if err != nil {
-					return err
-				}
-
-				fmt.Println("------------VSB---------", string(b))
-
-				var un *unstructured.Unstructured
-				err = json.Unmarshal(b, &un)
-				if err != nil {
-					return err
-				}
-				fmt.Println("------------VSJ---------", un.Object)
-
-				_, err = syncConfig.IstioClient.VirtualServices(syncConfig.Namespace).Create(context.TODO(), vs, metav1.CreateOptions{})
-				if err != nil && k8sErrors.IsAlreadyExists(err) {
-					return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-
-						vs, err := syncConfig.IstioClient.VirtualServices(syncConfig.Namespace).Get(context.TODO(), projectName, metav1.GetOptions{})
-						if err != nil {
-							return err
-						}
-
-						_, err = syncConfig.IstioClient.VirtualServices(syncConfig.Namespace).Update(context.TODO(), vs, metav1.UpdateOptions{})
-						return err
-					})
-				}
-
-				if err != nil {
-					return err
-				}
-
-			}
-
 		}
 
 		return syncConfig.updateCircle(circleName, projectsStatus)
