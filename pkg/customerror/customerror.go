@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 type CustomError struct {
@@ -41,6 +42,28 @@ func Unwrap(err error) CustomError {
 	}
 
 	return *customErr
+}
+
+func LogFields(err error) logrus.Fields {
+	customError, ok := err.(*CustomError)
+	if !ok {
+		return logrus.Fields{
+			"id":     uuid.New().String(),
+			"title":  "Unexpected error",
+			"detail": err.Error(),
+			"meta": map[string]string{
+				"timestamp": strconv.FormatInt(time.Now().Unix(), 10),
+			},
+		}
+	}
+
+	return logrus.Fields{
+		"id":         customError.ID,
+		"title":      customError.Title,
+		"detail":     customError.Detail,
+		"operations": customError.Operations,
+		"meta":       customError.Meta,
+	}
 }
 
 func New(title string, err error, meta map[string]string, operations ...string) error {
