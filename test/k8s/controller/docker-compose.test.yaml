@@ -1,0 +1,65 @@
+# to run define K3S_TOKEN, K3S_VERSION is optional, eg:
+#   K3S_TOKEN=${RANDOM}${RANDOM}${RANDOM} docker-compose up
+
+version: "3"
+services:
+  server:
+    image: rancher/k3s:latest
+    command: server --disable-agent --no-deploy traefik
+    environment:
+      - K3S_CLUSTER_SECRET=somethingtotallyrandom
+      - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml
+      - K3S_KUBECONFIG_MODE=666
+      - K3S_DATASTORE_CAFILE=/output/certs/ca
+      - K3S_DATASTORE_CERTFILE=/output/certs/cert
+      - K3S_DATASTORE_KEYFILE=/output/certs/key
+    volumes:
+      # k3s will generate a kubeconfig.yaml in this directory. This volume is mounted
+      # on your host, so you can then 'export KUBECONFIG=/somewhere/on/your/host/out/kubeconfig.yaml',
+      # in order for your kubectl commands to work.
+      - .:/output
+      # This directory is where you put all the (yaml) configuration files of
+      # the Kubernetes resources.
+      - ./tmp/k3s-images:/var/lib/rancher/k3s/server/manifests
+    ports:
+      - 6443:6443
+
+  node:
+    image: rancher/k3s:latest
+    privileged: true
+    links:
+      - server
+    environment:
+      - K3S_URL=https://server:6443
+      - K3S_CLUSTER_SECRET=somethingtotallyrandom
+      - K3S_DATASTORE_CAFILE=/output/certs/ca
+      - K3S_DATASTORE_CERTFILE=/output/certs/cert
+      - K3S_DATASTORE_KEYFILE=/output/certs/key
+    volumes:
+      # this is where you would place a alternative traefik image (saved as a .tar file with
+      # 'docker save'), if you want to use it, instead of the traefik:v2.4 image.
+      - ./tmp/k3s-images:/var/lib/rancher/k3s/server/manifests
+
+  app:
+    build:
+      dockerfile: ./cmd/controller/Dockerfile
+      context: ../
+    image: circlerr-controller
+    links:
+      - server
+    ports:
+      - 8080:8080
+    environment:
+      - KUBECONFIG_PATH=./test/kubeconfig.yaml
+      - K8S_CONN_TYPE=out
+      - K8S_HOST=https://server:6443
+      - ENV=PROD
+    volumes:
+      - .:/test
+    restart: always
+    depends_on:
+      - "server"
+      - "node"
+
+volumes:
+  k3s-server: {}

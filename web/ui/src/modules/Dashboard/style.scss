@@ -1,0 +1,33 @@
+.dashboard {
+  display: flex;
+
+  &__sidebar {
+    width: 60px;
+    height: 100vh;
+    background-color:#3A3A3C;
+
+    &__list {
+      background: transparent !important;
+
+      &__item {
+        background: transparent;
+        color: #fff;
+        padding: 15px 20px;
+
+        &__active {
+          background-color: #1C1C1E;
+        }
+
+        &:hover {
+          background: transparent;
+          color: #fff;
+          background-color:#1C1C1E;
+        }
+      }
+    }
+  }
+
+  &__content {
+    width: 100%;
+  }
+}

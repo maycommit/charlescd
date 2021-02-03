@@ -1,0 +1,204 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: circles.circlerr.io
+spec:
+  group: circlerr.io
+  names:
+    kind: Circle
+    plural: circles
+    shortNames:
+    - cl
+    singular: circle
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              destination:
+                properties:
+                  namespace:
+                    type: string
+                type: object
+              environments:
+                items:
+                  properties:
+                    key:
+                      type: string
+                    value:
+                      type: string
+                  type: object
+                type: array
+              release:
+                properties:
+                  name:
+                    type: string
+                  projects:
+                    items:
+                      properties:
+                        image:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              segments:
+                items:
+                  properties:
+                    condition:
+                      type: string
+                    key:
+                      type: string
+                    value:
+                      type: string
+                  type: object
+                type: array
+            type: object
+          status:
+            properties:
+              projects:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    resources:
+                      items:
+                        properties:
+                          creationTimestamp:
+                            type: string
+                          group:
+                            type: string
+                          health:
+                            properties:
+                              message:
+                                type: string
+                              status:
+                                type: string
+                            type: object
+                          kind:
+                            type: string
+                          name:
+                            type: string
+                          status:
+                            type: string
+                          version:
+                            type: string
+                        type: object
+                      type: array
+                    status:
+                      type: string
+                  type: object
+                type: array
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: projects.circlerr.io
+spec:
+  group: circlerr.io
+  names:
+    kind: Project
+    plural: projects
+    shortNames:
+    - pj
+    singular: project
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              path:
+                type: string
+              repoUrl:
+                type: string
+              template:
+                properties:
+                  templateType:
+                    type: string
+                type: object
+              token:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: circlerr-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: circlerr-controller
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - '*'
+- nonResourceURLs:
+  - '*'
+  verbs:
+  - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: circlerr-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: circlerr-controller
+subjects:
+- kind: ServiceAccount
+  name: circlerr-controller
+  namespace: circlerr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: circlerr-controller
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: circlerr-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: circlerr-controller
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: circlerr-controller
+  template:
+    metadata:
+      labels:
+        app: circlerr-controller
+    spec:
+      containers:
+      - image: circlerr/circlerr-k8s-controller:latest
+        name: circlerr-controller
+        ports:
+        - containerPort: 8080
+      serviceAccountName: circlerr-controller

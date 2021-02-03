@@ -1,0 +1,67 @@
+.circle {
+  &__card {
+    background-color:  #3A3A3C;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 20px;
+
+    &__header {
+      display: flex;
+      justify-content: space-between;
+      color: #fff;
+
+      &__Healthy {
+        border: 1px solid #10AA80;
+        color: #10AA80;
+        border-radius: 4px;
+        padding: 2px;
+      }
+  
+      &__Degraded {
+        border: 1px solid #ef5350;
+        color: #ef5350;
+        border-radius: 2px;
+        padding: 2px;
+      }
+  
+      &__Progressing {
+        border: 1px solid #536dfe;
+        color: #536dfe;
+        border-radius: 4px;
+        padding: 2px;
+      }
+    }
+
+    &__clusters {
+      margin-top: 15px;
+
+      &__item {
+        &__Healthy {
+          background: #10AA80;
+          color:  #fff;
+          border-radius: 4px;
+          padding: 2px;
+          margin-bottom: 5px;
+        }
+    
+        &__Degraded {
+          background: #ef5350;
+          color:  #fff;
+          border-radius: 2px;
+          padding: 2px;
+          margin-bottom: 5px;
+        }
+    
+        &__Progressing {
+          background: #536dfe;
+          color:  #fff;
+          background-color: #536dfe;
+          border-radius: 4px;
+          padding: 2px;
+          margin-bottom: 5px;
+        }
+      }
+    }
+    
+  }
+}

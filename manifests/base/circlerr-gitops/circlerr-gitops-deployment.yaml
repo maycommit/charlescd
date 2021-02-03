@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: circlerr-gitops
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: circlerr-gitops
+  template:
+    metadata:
+      labels:
+        app: circlerr-gitops
+    spec:
+      containers:
+        - image: circlerr/circlerr-gitops:latest
+          name: circlerr-gitops
+          ports:
+            - containerPort: 8080
+      serviceAccountName: circlerr-gitops

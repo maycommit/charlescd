@@ -1,0 +1,25 @@
+.workspace {
+  &__card {
+    padding: 10px;
+    background-color: #3A3A3C !important;
+    color: #fff;
+    border-radius: 4px;
+
+    &__clusters {
+      margin-top: 10px;
+
+      &__item {
+        border-radius: 4px;
+        padding: 10px;
+        background-color: #10AA80;
+        cursor: pointer;
+
+        &:hover {
+          background-color: #0e8565;
+        }
+      }
+    }
+  }
+
+  
+}

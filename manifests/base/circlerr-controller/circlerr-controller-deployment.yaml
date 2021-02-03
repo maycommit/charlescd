@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: circlerr-controller
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: circlerr-controller
+  template:
+    metadata:
+      labels:
+        app: circlerr-controller
+    spec:
+      containers:
+        - image: circlerr/circlerr-k8s-controller:latest
+          name: circlerr-controller
+          ports:
+          - containerPort: 8080
+      serviceAccountName: circlerr-controller
