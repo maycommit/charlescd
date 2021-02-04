@@ -1,5 +1,5 @@
 apiVersion: circlerr.io/v1alpha1
-name: Circle
+kind: Circle
 metadata:
   name: qa
 spec:

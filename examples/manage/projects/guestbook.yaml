@@ -1,5 +1,5 @@
 apiVersion: circlerr.io/v1alpha1
-name: Project
+kind: Project
 metadata:
   name: guestbook
 spec:

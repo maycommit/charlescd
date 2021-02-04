@@ -5,12 +5,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/maycommit/circlerr/internal/k8s/controller/utils/kube"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-var repoUrl = "https://github.com/circlerr/manage-controller-example"
+var repoUrl = "https://github.com/maycommit/circlerr"
 
 func init() {
 	fGitDir := flag.String("gitdir", "./tmp/git", "")
@@ -39,14 +41,14 @@ func main() {
 		case <-ticker.C:
 			currentRevision, err := RemoteSync(repoUrl)
 			if err != nil {
-				err.AddOperation("gitops.main.RemoteSync").LogFields()
+				logrus.Fatalln(err.AddOperation("gitops.main.RemoteSync").LogFields())
 				return
 			}
 
 			if currentRevision != revision {
-				manifests, err = Parse(repoUrl, "")
+				manifests, err = Parse(repoUrl, "examples/manage")
 				if err != nil {
-					err.AddOperation("gitops.main.Parse").LogFields()
+					logrus.Fatalln(err.AddOperation("gitops.main.Parse").LogFields())
 					return
 				}
 
@@ -55,7 +57,7 @@ func main() {
 
 			err = syncOpts.Sync(manifests)
 			if err != nil {
-				err.AddOperation("gitops.main.Sync").LogFields()
+				logrus.Fatalln(err.AddOperation("gitops.main.Sync").LogFields())
 				return
 			}
 		}
