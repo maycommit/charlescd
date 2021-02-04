@@ -1,0 +1,9 @@
+apiVersion: circlerr.io/v1alpha1
+name: Project
+metadata:
+  name: guestbook
+spec:
+  repoUrl: https://github.com/maycommit/circlerr
+  path: examples/projects/guestbook
+  template:
+    templateType: puremanifest

@@ -1,8 +1,17 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	circleCache "github.com/maycommit/circlerr/internal/k8s/controller/cache/circle"
+	"github.com/maycommit/circlerr/internal/k8s/controller/template"
+	gitutils "github.com/maycommit/circlerr/internal/k8s/controller/utils/git"
+	circleApi "github.com/maycommit/circlerr/pkg/k8s/controller/apis/circle/v1alpha1"
+	circlerrVersioned "github.com/maycommit/circlerr/pkg/k8s/controller/client/clientset/versioned"
 
 	gitopsEngineCache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -13,7 +22,6 @@ import (
 	"github.com/maycommit/circlerr/internal/k8s/controller/cache"
 	cacheUtils "github.com/maycommit/circlerr/internal/k8s/controller/utils/cache"
 	"github.com/maycommit/circlerr/pkg/customerror"
-	circleApi "github.com/maycommit/circlerr/pkg/k8s/controller/apis/circle/v1alpha1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
@@ -21,14 +29,16 @@ import (
 )
 
 type Engine struct {
-	appCache cache.Cache
-	kubectl  kube.Kubectl
-	config   *rest.Config
+	appCache  cache.Cache
+	kubectl   kube.Kubectl
+	config    *rest.Config
+	clientset *circlerrVersioned.Clientset
 }
 
-func New(appCache cache.Cache) *Engine {
+func New(appCache cache.Cache, clientset *circlerrVersioned.Clientset) *Engine {
 	e := &Engine{
-		appCache: appCache,
+		appCache:  appCache,
+		clientset: clientset,
 		kubectl: &kube.KubectlCmd{
 			Log:    klogr.New(),
 			Tracer: tracing.NopTracer{},
@@ -37,15 +47,32 @@ func New(appCache cache.Cache) *Engine {
 	return e
 }
 
-func (e *Engine) GetManifests(circle circleApi.Circle) ([]*unstructured.Unstructured, error) {
+func (e *Engine) getManifests(circleName string, circle *circleCache.CircleCache) ([]*unstructured.Unstructured, error) {
 	manifests := []*unstructured.Unstructured{}
 
-	if circle.Spec.Release != nil {
+	for _, cp := range circle.Circle().Spec.Release.Projects {
+		revision, err := gitutils.SyncRepository(cp.Name, e.appCache.Projects().Get(cp.Name))
+		if err != nil {
+			return nil, err
+		}
 
+		project := e.appCache.Projects().Get(cp.Name)
+		if len(circle.Manifests()) <= 0 || revision != project.GetRevision() {
+			t := template.NewTemplate(cp.Name, project)
+			newManifests, err := t.ParseManifests(circleName, circle)
+			if err != nil {
+				return nil, err
+			}
+
+			e.appCache.Circles().Get(circleName).SetManifests(newManifests)
+			manifests = append(manifests, newManifests...)
+		}
 	}
+
+	return manifests, nil
 }
 
-func (e *Engine) SyncCluster(
+func (e *Engine) syncCluster(
 	manifests []*unstructured.Unstructured,
 	namespace string) ([]common.ResourceSyncResult, error) {
 
@@ -83,24 +110,71 @@ func (e *Engine) SyncCluster(
 	return resources, nil
 }
 
-func (e *Engine) IsIterableCircle(circle circleApi.Circle) bool {
-	return circle.Spec.Release != nil
+func (e *Engine) updateCircleStatus(circleName string, circle *circleCache.CircleCache, results []common.ResourceSyncResult) error {
+	resourcesStatus := []circleApi.ResourceStatus{}
+	updateCircle := circle.Circle()
+
+	for _, res := range results {
+		r := circleApi.ResourceStatus{
+			Group:     res.ResourceKey.Group,
+			Kind:      res.ResourceKey.Kind,
+			Name:      res.ResourceKey.Name,
+			Namespace: res.ResourceKey.Namespace,
+			Status:    string(res.Status),
+		}
+
+		resourcesStatus = append(resourcesStatus, r)
+	}
+
+	updateCircle.Status = circleApi.CircleStatus{
+		Projects: []circleApi.ProjectStatus{
+			{Resources: resourcesStatus},
+		},
+	}
+	_, err := e.clientset.CircleV1alpha1().Circles("").Update(
+		context.TODO(),
+		&updateCircle,
+		metav1.UpdateOptions{},
+	)
+	return err
 }
 
-func (e *Engine) Wave(circle circleApi.Circle) {
+func (e *Engine) wave(circleName string, circle *circleCache.CircleCache) error {
+	manifests, err := e.getManifests(circleName, circle)
+	if err != nil {
+		return err
+	}
 
+	namespace := circle.Circle().Spec.Destination.Namespace
+	results, err := e.syncCluster(manifests, namespace)
+	if err != nil {
+		return err
+	}
+
+	err = e.updateCircleStatus(circleName, circle, results)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (e *Engine) Start() error {
 	err := e.appCache.Cluster().EnsureSynced()
 	if err != nil {
-		logrus.Fatalln(customerror.LogFields(customerror.New("Failed ensyre cache", err, nil, "engine.Start")))
+		logrus.Fatalln(customerror.LogFields(customerror.New("Failed ensure cache", err, nil, "engine.Start")))
 	}
 
 	for {
-		for _, c := range e.appCache.Circle().List() {
-			e.Wave(c.Circle)
-		}
+		e.appCache.Circles().IterateAllCircles(func(circleName string, circle *circleCache.CircleCache) {
+			if circle.Circle().Spec.Release != nil && !circle.IsDeletion() {
+				err := e.wave(circleName, circle)
+				if err != nil {
+					logrus.Warnln(customerror.LogFields(err))
+					return
+				}
+			}
+		})
 
 		time.Sleep(3 * time.Second)
 	}

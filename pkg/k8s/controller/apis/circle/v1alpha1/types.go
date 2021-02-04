@@ -69,31 +69,26 @@ type CircleSpec struct {
 	Segments     []Segment         `json:"segments,omitempty"`
 }
 
-type ResourceHealth struct {
-	Status  health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
-	Message string                  `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
-}
-
 type ResourceStatus struct {
-	Group             string          `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Version           string          `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
-	Kind              string          `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
-	Name              string          `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
-	Status            string          `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	Health            *ResourceHealth `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
-	CreationTimestamp metav1.Time     `json:"creationTimestamp"`
+	Group             string               `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind              string               `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Name              string               `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+	Namespace         string               `json:"namespace"`
+	Status            string               `json:"status"`
+	Health            *health.HealthStatus `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	CreationTimestamp metav1.Time          `json:"creationTimestamp"`
 }
 
 type ProjectStatus struct {
-	Name      string                  `json:"name,omitempty"`
-	Status    health.HealthStatusCode `json:"status,omitempty"`
-	Resources []ResourceStatus        `json:"resources,omitempty"`
+	Name      string              `json:"name,omitempty"`
+	Health    health.HealthStatus `json:"status,omitempty"`
+	Resources []ResourceStatus    `json:"resources,omitempty"`
 }
 
 type CircleStatus struct {
-	Status   health.HealthStatusCode `json:"status,omitempty"`
-	Projects []ProjectStatus         `json:"projects,omitempty"`
-	Errors   []string                `json:"errors"`
+	Health        health.HealthStatusCode `json:"status,omitempty"`
+	Projects      []ProjectStatus         `json:"projects,omitempty"`
+	BreakingError string                  `json:"error"`
 }
 
 type CircleError struct {

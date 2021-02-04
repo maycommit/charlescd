@@ -62,8 +62,13 @@ spec:
             status:
               type: object
               properties:
-                status:
-                  type: string
+                health:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                    message:
+                      type: string
                 errors:
                   type: array
                   items:
@@ -75,8 +80,13 @@ spec:
                     properties:
                       name:
                         type: string
-                      status:
-                        type: string
+                      health:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                          message:
+                            type: string
                       resources:
                         type: array
                         items:
@@ -90,7 +100,7 @@ spec:
                               type: string
                             name:
                               type: string
-                            status:
+                            namespace:
                               type: string
                             creationTimestamp:
                               type: string

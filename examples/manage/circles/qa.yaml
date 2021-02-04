@@ -1,0 +1,19 @@
+apiVersion: circlerr.io/v1alpha1
+name: Circle
+metadata:
+  name: qa
+spec:
+  environments:
+    - key: API_URL
+      value: http://service.com:8080
+  segments:
+    - key: username
+      condition: =
+      value: maycommit
+  destination:
+    namespace: default
+  release:
+    name: release-v1
+    projects:
+      - name: guestbook
+        image: latest

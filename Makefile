@@ -14,14 +14,14 @@ CMD_CONTROLLER_PATH=cmd/controller/*.go
 CMD_GITOPS_PATH=cmd/gitops/*.go
 BINARY_NAME=circlerr-controller
 
-CMD_K8SCONTROLLER_PATH=k8scontroller/cmd/*.go
-CMD_K8SCONTROLLER_GITOPS_PATH=k8scontroller/cmd/gitops/*.go
-CMD_MANAGER_PATH=manager/cmd/*.go
+CMD_K8SCONTROLLER_PATH=cmd/k8s/controller/*.go
+CMD_K8SCONTROLLER_GITOPS_PATH=cmd/k8s/gitops/*.go
+CMD_MANAGER_PATH=cmd/manager/*.go
 
 
 # === K8S Controller ===
 k8s-controller-config:
-				sh k8scontroller/hack/prepare-development.sh
+				sh hack/k8s/controller/prepare-development.sh
 
 k8s-controller-start:
 				$(GORUN) $(CMD_K8SCONTROLLER_PATH) -k8sconntype=out

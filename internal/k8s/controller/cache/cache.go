@@ -10,23 +10,23 @@ import (
 )
 
 type cache struct {
-	project *project.ProjectsCache
-	circle  *circle.CirclesCache
+	projects *project.ProjectsCache
+	circles  *circle.CirclesCache
 	cluster gitopsCache.ClusterCache
 }
 
 type Cache interface {
-	Project() *project.ProjectsCache
-	Circle() *circle.CirclesCache
+	Projects() *project.ProjectsCache
+	Circles() *circle.CirclesCache
 	Cluster() gitopsCache.ClusterCache
 }
 
-func (c *cache) Project() *project.ProjectsCache {
-	return c.project
+func (c *cache) Projects() *project.ProjectsCache {
+	return c.projects
 }
 
-func (c *cache) Circle() *circle.CirclesCache {
-	return c.circle
+func (c *cache) Circles() *circle.CirclesCache {
+	return c.circles
 }
 
 func (c *cache) Cluster() gitopsCache.ClusterCache {
@@ -35,8 +35,8 @@ func (c *cache) Cluster() gitopsCache.ClusterCache {
 
 func New(config *rest.Config) Cache {
 	return &cache{
-		project: project.NewProjectCache(),
-		circle:  circle.NewCircleCache(),
+		projects: project.NewProjectCache(),
+		circles:  circle.NewCirclesCache(),
 		cluster: cluster.NewClusterCache(config, []string{}),
 	}
 }

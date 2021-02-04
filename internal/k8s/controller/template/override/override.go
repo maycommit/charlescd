@@ -68,12 +68,12 @@ func overrideImage(manifest *unstructured.Unstructured, image string) error {
 
 func Do(manifests []*unstructured.Unstructured, projectName string, circle *circle.CircleCache) ([]*unstructured.Unstructured, error) {
 	for _, m := range manifests {
-		overrideName(m, projectName, circle.Spec.Release.Name)
-		overrideAnnotations(m, projectName, circle.GetName(), circle.GetRelease().Name)
-		err := overrideImage(m, circle.GetProject(projectName).Image)
-		if err != nil {
-			return nil, err
-		}
+		overrideName(m, projectName, circle.Circle().Spec.Release.Name)
+		overrideAnnotations(m, projectName, circle.Circle().Name, circle.Circle().Spec.Release.Name)
+		//err := overrideImage(m, circle.GetProject(projectName).Image)
+		//if err != nil {
+		//	return nil, err
+		//}
 	}
 
 	return manifests, nil

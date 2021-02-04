@@ -13,15 +13,15 @@ type handler struct {
 }
 
 func (h *handler) addFunc(obj interface{}) {
-
+	// TODO: ADD TO CACHE
 }
 
 func (h *handler) updateFunc(oldObj interface{}, newObj interface{}) {
-
+	// TODO: UPDATE CACHE
 }
 
 func (h *handler) deleteFunc(obj interface{}) {
-
+	// TODO: UPDATE CACHE
 }
 
 func New(

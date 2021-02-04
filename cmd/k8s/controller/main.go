@@ -37,12 +37,12 @@ func main() {
 	// kubeClient := dynamic.NewForConfigOrDie(config)
 	circlerrInformerFactory := circlerrExternalversions.NewSharedInformerFactory(circlerrClientset, 0)
 	appCache := cache.New(config)
-	e := engine.New(appCache)
+	e := engine.New(appCache, circlerrClientset)
 
 	stopCh := make(chan struct{})
 	go circleHandler.New(stopCh, circlerrInformerFactory, nil)
 	go projectHandler.New(stopCh, circlerrInformerFactory, nil)
-	go e.Start()
+	e.Start()
 
 	// controllerCache := cache.NewCache(config, namespace)
 	// discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)

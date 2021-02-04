@@ -13,15 +13,17 @@ type handler struct {
 }
 
 func (h *handler) addFunc(obj interface{}) {
-
+	// TODO: ADD TO CACHE
 }
 
 func (h *handler) updateFunc(oldObj interface{}, newObj interface{}) {
-
+	// TODO: UPDATE CACHE
+	// TODO: VERIFY CIRCLE STATUS FOR UPDATE ROUTES
 }
 
 func (h *handler) deleteFunc(obj interface{}) {
-
+	// TODO: SET CIRCLE DELETION
+	// TODO: UPDATE ROUTES
 }
 
 func New(
