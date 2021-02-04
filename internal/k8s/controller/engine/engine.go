@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	circleCache "github.com/maycommit/circlerr/internal/k8s/controller/cache/circle"
@@ -35,8 +37,9 @@ type Engine struct {
 	clientset *circlerrVersioned.Clientset
 }
 
-func New(appCache cache.Cache, clientset *circlerrVersioned.Clientset) *Engine {
+func New(config *rest.Config, appCache cache.Cache, clientset *circlerrVersioned.Clientset) *Engine {
 	e := &Engine{
+		config:    config,
 		appCache:  appCache,
 		clientset: clientset,
 		kubectl: &kube.KubectlCmd{
@@ -89,7 +92,7 @@ func (e *Engine) syncCluster(
 		return nil, customerror.New("Sync cluster failed!", err, nil, "engine.SyncCluster.GetManagedLiveObjs")
 	}
 
-	opts := []sync.SyncOpt{sync.WithSkipHooks(!diffRes.Modified)}
+	opts := []sync.SyncOpt{sync.WithSkipHooks(!diffRes.Modified), sync.WithOperationSettings(false, true, true, false)}
 	syncCtx, err := sync.NewSyncContext("", result, e.config, e.config, e.kubectl, namespace, opts...)
 	if err != nil {
 		return nil, customerror.New("Sync cluster failed!", err, nil, "engine.SyncCluster.GetManagedLiveObjs")
@@ -114,16 +117,31 @@ func (e *Engine) updateCircleStatus(circleName string, circle *circleCache.Circl
 	resourcesStatus := []circleApi.ResourceStatus{}
 	updateCircle := circle.Circle()
 
+	namespace := circle.Circle().Spec.Destination.Namespace
+	topLevelResources := e.appCache.Cluster().GetNamespaceTopLevelResources(namespace)
+
 	for _, res := range results {
-		r := circleApi.ResourceStatus{
-			Group:     res.ResourceKey.Group,
-			Kind:      res.ResourceKey.Kind,
-			Name:      res.ResourceKey.Name,
-			Namespace: res.ResourceKey.Namespace,
-			Status:    string(res.Status),
+		t := topLevelResources[res.ResourceKey]
+
+		if t.Resource != nil {
+			healthStatus, err := health.GetResourceHealth(t.Resource, nil)
+			if err != nil {
+				return err
+			}
+
+			r := circleApi.ResourceStatus{
+				Group:             res.ResourceKey.Group,
+				Kind:              res.ResourceKey.Kind,
+				Name:              res.ResourceKey.Name,
+				Namespace:         res.ResourceKey.Namespace,
+				Health:            healthStatus,
+				Status:            string(res.Status),
+				CreationTimestamp: *t.CreationTimestamp,
+			}
+
+			resourcesStatus = append(resourcesStatus, r)
 		}
 
-		resourcesStatus = append(resourcesStatus, r)
 	}
 
 	updateCircle.Status = circleApi.CircleStatus{
@@ -131,7 +149,7 @@ func (e *Engine) updateCircleStatus(circleName string, circle *circleCache.Circl
 			{Resources: resourcesStatus},
 		},
 	}
-	_, err := e.clientset.CircleV1alpha1().Circles("").Update(
+	_, err := e.clientset.CircleV1alpha1().Circles("default").Update(
 		context.TODO(),
 		&updateCircle,
 		metav1.UpdateOptions{},

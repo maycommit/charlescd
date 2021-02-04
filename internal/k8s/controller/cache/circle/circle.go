@@ -9,8 +9,8 @@ import (
 )
 
 type CircleCache struct {
-	lock sync.RWMutex
-	circle circleApi.Circle
+	lock       sync.RWMutex
+	circle     circleApi.Circle
 	manifests  []*unstructured.Unstructured
 	isDeletion bool
 }
@@ -43,33 +43,39 @@ func (c *CircleCache) IsDeletion() bool {
 }
 
 type CirclesCache struct {
-	lock sync.RWMutex
+	lock    sync.RWMutex
 	circles map[string]*CircleCache
 }
 
-func  (c *CirclesCache) Circles() map[string]*CircleCache {
+func (c *CirclesCache) Circles() map[string]*CircleCache {
 	return c.circles
 }
 
-func  (c *CirclesCache) Put(circleName string, circle circleApi.Circle) *CircleCache {
+func (c *CirclesCache) Add(circleName string, circle circleApi.Circle) *CircleCache {
 	c.circles[circleName] = &CircleCache{
-		circle: circle,
+		circle:     circle,
 		isDeletion: false,
-		manifests: []*unstructured.Unstructured{},
+		manifests:  []*unstructured.Unstructured{},
 	}
 
 	return c.circles[circleName]
 }
 
-func  (c *CirclesCache) Get(circleName string) *CircleCache {
+func (c *CirclesCache) Set(circleName string, circle circleApi.Circle) *CircleCache {
+	c.circles[circleName].circle = circle
+
 	return c.circles[circleName]
 }
 
-func  (c *CirclesCache) Delete(circleName string) {
+func (c *CirclesCache) Get(circleName string) *CircleCache {
+	return c.circles[circleName]
+}
+
+func (c *CirclesCache) Delete(circleName string) {
 	delete(c.circles, circleName)
 }
 
-func (c *CirclesCache) IterateAllCircles(cb func (circleName string, circle *CircleCache)) {
+func (c *CirclesCache) IterateAllCircles(cb func(circleName string, circle *CircleCache)) {
 	for circleName, circle := range c.Circles() {
 		cb(circleName, circle)
 	}
@@ -81,9 +87,6 @@ func NewCirclesCache() *CirclesCache {
 		circles: map[string]*CircleCache{},
 	}
 }
-
-
-
 
 //func (c *CircleCache) SetDeletion(isDeletion bool) {
 //	c.lock.Lock()

@@ -34,14 +34,13 @@ func main() {
 	}
 
 	circlerrClientset := circlerrVersioned.NewForConfigOrDie(config)
-	// kubeClient := dynamic.NewForConfigOrDie(config)
 	circlerrInformerFactory := circlerrExternalversions.NewSharedInformerFactory(circlerrClientset, 0)
 	appCache := cache.New(config)
-	e := engine.New(appCache, circlerrClientset)
+	e := engine.New(config, appCache, circlerrClientset)
 
 	stopCh := make(chan struct{})
-	go circleHandler.New(stopCh, circlerrInformerFactory, nil)
-	go projectHandler.New(stopCh, circlerrInformerFactory, nil)
+	go circleHandler.New(stopCh, circlerrInformerFactory, appCache)
+	go projectHandler.New(stopCh, circlerrInformerFactory, appCache)
 	e.Start()
 
 	// controllerCache := cache.NewCache(config, namespace)
