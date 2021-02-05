@@ -24,7 +24,7 @@ k8s-controller-config:
 				sh hack/k8s/controller/prepare-development.sh
 
 k8s-controller-start:
-				$(GORUN) $(CMD_K8SCONTROLLER_PATH) -k8sconntype=out
+				$(GORUN) $(CMD_K8SCONTROLLER_PATH) -kubeconfig=$${HOME}/.kube/config
 
 k8s-controller-tests:
 				$(GOTEST) ./k8scontroller
@@ -43,7 +43,7 @@ k8s-controller-e2e:
 				make k8scontroller-e2e-deps-down
 
 k8s-gitops-start:
-				$(GORUN) $(CMD_K8SCONTROLLER_GITOPS_PATH) -k8sconntype=out
+				$(GORUN) $(CMD_K8SCONTROLLER_GITOPS_PATH) -kubeconfig=$${HOME}/.kube/config
 # ===
 
 # === Manager ===

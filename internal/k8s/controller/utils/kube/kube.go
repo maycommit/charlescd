@@ -2,11 +2,9 @@ package kube
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -15,31 +13,12 @@ import (
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 )
 
 func GetClusterConfig() (*restclient.Config, error) {
-	kubeconfig := os.Getenv("KUBECONFIG_PATH")
-	flag.Parse()
-
-	if kubeconfig == "" {
-		if home := homedir.HomeDir(); home != "" {
-			kubeconfig = filepath.Join(home, ".kube", "config")
-		}
-	}
-
-	connectionType := os.Getenv("K8S_CONN_TYPE")
-	if connectionType == "" {
-		return restclient.InClusterConfig()
-	}
-
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	config, err := clientcmd.BuildConfigFromFlags(os.Getenv("MASTER_URL"), os.Getenv("KUBECONFIG"))
 	if err != nil {
 		return nil, err
-	}
-
-	if os.Getenv("K8S_HOST") != "" {
-		config.Host = os.Getenv("K8S_HOST")
 	}
 
 	return config, nil

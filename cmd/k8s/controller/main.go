@@ -15,16 +15,14 @@ import (
 )
 
 func init() {
-	fGitDir := flag.String("gitdir", "./tmp/git", "")
-	fRouterType := flag.String("router", os.Getenv("ROUTER_TYPE"), "")
-	fKubeconfigPath := flag.String("kubepath", os.Getenv("KUBECONFIG_PATH"), "")
-	fK8sConnType := flag.String("k8sconntype", os.Getenv("K8S_CONN_TYPE"), "")
+	kubeconfig := flag.String("kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
+	masterUrl := flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	gitDir := flag.String("gitdir", "./tmp/git", "")
 	flag.Parse()
 
-	os.Setenv("GIT_DIR", *fGitDir)
-	os.Setenv("ROUTER_TYPE", *fRouterType)
-	os.Setenv("KUBECONFIG_PATH", *fKubeconfigPath)
-	os.Setenv("K8S_CONN_TYPE", *fK8sConnType)
+	os.Setenv("GIT_DIR", *gitDir)
+	os.Setenv("KUBECONFIG", *kubeconfig)
+	os.Setenv("MASTER_URL", *masterUrl)
 }
 
 func main() {
@@ -42,32 +40,4 @@ func main() {
 	go circleHandler.New(stopCh, circlerrInformerFactory, appCache)
 	go projectHandler.New(stopCh, circlerrInformerFactory, appCache)
 	e.Start()
-
-	// controllerCache := cache.NewCache(config, namespace)
-	// discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// var currentRouter router.UseCases
-	// if os.Getenv("ROUTER_TYPE") != "" {
-	// 	currentRouter = router.NewRouter(controllerCache, config, namespace)
-	// }
-
-	// kubectl := &kubeutil.KubectlCmd{
-	// 	Log:    klogr.New(),
-	// 	Tracer: tracing.NopTracer{},
-	// }
-	// clusterSyncOpts := cluster.New(config, kubeClient, namespace, controllerCache, currentRouter, kubectl, client)
-
-	// go circle.Run(stopCh, customInformerFactory, controllerCache)
-	// go project.Run(stopCh, customInformerFactory, controllerCache)
-	// go clusterSyncOpts.Run(stopCh)
-
-	// api.NewApi(
-	// 	controllerCache,
-	// 	client,
-	// 	kubeClient,
-	// 	discoveryClient,
-	// ).Start()
 }

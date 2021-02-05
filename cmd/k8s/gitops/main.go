@@ -1,65 +1,72 @@
-package main
+package gitops
 
 import (
 	"flag"
+	"io/ioutil"
 	"os"
-	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/maycommit/circlerr/internal/k8s/controller/utils/git"
 
 	"github.com/maycommit/circlerr/internal/k8s/controller/utils/kube"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"gopkg.in/yaml.v2"
+	"k8s.io/klog"
 )
 
-var repoUrl = "https://github.com/maycommit/circlerr"
-
 func init() {
-	fGitDir := flag.String("gitdir", "./tmp/git", "")
-	fKubeconfigPath := flag.String("kubepath", os.Getenv("KUBECONFIG_PATH"), "")
-	fK8sConnType := flag.String("k8sconntype", os.Getenv("K8S_CONN_TYPE"), "")
+	config := flag.String("config", "", "Path to config repository list.")
+	kubeconfig := flag.String("kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
+	masterUrl := flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	gitDir := flag.String("gitdir", "./tmp/git", "")
 	flag.Parse()
 
-	os.Setenv("GIT_DIR", *fGitDir)
-	os.Setenv("KUBECONFIG_PATH", *fKubeconfigPath)
-	os.Setenv("K8S_CONN_TYPE", *fK8sConnType)
+	os.Setenv("CONFIG", *gitDir)
+	os.Setenv("GIT_DIR", *gitDir)
+	os.Setenv("KUBECONFIG", *kubeconfig)
+	os.Setenv("MASTER_URL", *masterUrl)
+}
+
+type Repository struct {
+	Url  string `yaml:"url"`
+	Path string `yaml:"path"`
+}
+
+type Repositories struct {
+	Repositories []Repository `yaml:"repositories"`
+}
+
+func loadRepositories() (*Repositories, error) {
+	conf := &Repositories{}
+	configData, err := ioutil.ReadFile(os.Getenv("CONFIG"))
+	if err != nil {
+		return nil, err
+	}
+
+	err = yaml.Unmarshal(configData, conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return conf, nil
 }
 
 func main() {
-	revision := ""
-	manifests := []*unstructured.Unstructured{}
-	config, err := kube.GetClusterConfig()
+
+	repositories, err := loadRepositories()
 	if err != nil {
-		panic(err)
+		klog.Fatalf("Load repositories by config file failed: %s\n", err.Error())
 	}
 
-	ticker := time.NewTicker(5 * time.Second)
-	syncOpts := NewSyncOpts(config, "default")
+	config, err := kube.GetClusterConfig()
+	if err != nil {
+		klog.Fatalf("Get cluster config failed: %s\n", err.Error())
+	}
 
-	for {
-		select {
-		case <-ticker.C:
-			currentRevision, err := RemoteSync(repoUrl)
-			if err != nil {
-				logrus.Fatalln(err.AddOperation("gitops.main.RemoteSync").LogFields())
-				return
-			}
-
-			if currentRevision != revision {
-				manifests, err = Parse(repoUrl, "examples/manage")
-				if err != nil {
-					logrus.Fatalln(err.AddOperation("gitops.main.Parse").LogFields())
-					return
-				}
-
-				revision = currentRevision
-			}
-
-			err = syncOpts.Sync(manifests)
-			if err != nil {
-				logrus.Fatalln(err.AddOperation("gitops.main.Sync").LogFields())
-				return
-			}
+	for _, r := range repositories.Repositories {
+		gitRepository, err := git.CloneAndOpenRepository(r.Url)
+		if err != nil {
+			klog.Fatalf("Clone or open git repository failed: %s\n", err.Error())
 		}
+
+		revision, err := git.SyncRepository()
 	}
 }
