@@ -20,8 +20,6 @@ func (h *handler) addFunc(obj interface{}) {
 }
 
 func (h *handler) updateFunc(oldObj interface{}, newObj interface{}) {
-	// TODO: UPDATE CACHE
-	// TODO: VERIFY CIRCLE STATUS FOR UPDATE ROUTES
 	newCircle := newObj.(*circleApi.Circle)
 
 	h.appCache.Circles().Set(newCircle.GetName(), *newCircle)

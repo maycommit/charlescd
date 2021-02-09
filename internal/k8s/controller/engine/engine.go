@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/go-git/go-git/v5"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -54,19 +55,23 @@ func (e *Engine) getManifests(circleName string, circle *circleCache.CircleCache
 	manifests := []*unstructured.Unstructured{}
 
 	for _, cp := range circle.Circle().Spec.Release.Projects {
-		revision, err := gitutils.SyncRepository(cp.Name, e.appCache.Projects().Get(cp.Name))
+		projectCache := e.appCache.Projects().Get(cp.Name)
+		gitOptions := git.CloneOptions{
+			URL: projectCache.RepoURL,
+		}
+		remoteRevision, err := gitutils.SyncRepository(gitOptions, projectCache.GetRevision())
 		if err != nil {
 			return nil, err
 		}
 
-		project := e.appCache.Projects().Get(cp.Name)
-		if len(circle.Manifests()) <= 0 || revision != project.GetRevision() {
-			t := template.NewTemplate(cp.Name, project)
+		if len(circle.Manifests()) <= 0 || remoteRevision != projectCache.GetRevision() {
+			t := template.NewTemplate(cp.Name, projectCache)
 			newManifests, err := t.ParseManifests(circleName, circle)
 			if err != nil {
 				return nil, err
 			}
 
+			projectCache.SetRevision(remoteRevision)
 			e.appCache.Circles().Get(circleName).SetManifests(newManifests)
 			manifests = append(manifests, newManifests...)
 		}

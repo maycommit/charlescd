@@ -2,55 +2,62 @@ package git
 
 import (
 	"fmt"
-	"os"
+	"net/url"
 
-	"github.com/maycommit/circlerr/internal/k8s/controller/cache/project"
 	"github.com/maycommit/circlerr/internal/k8s/controller/env"
-	apperror "github.com/maycommit/circlerr/internal/k8s/controller/error"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 )
 
-func CloneAndOpenRepository(repoUrl string) (*git.Repository, apperror.Error) {
-	gitDirOut := fmt.Sprintf("%s/%s", env.Get("GIT_DIR"), repoUrl)
+func GetRepository(gitOptions git.CloneOptions) (*git.Repository, error) {
+	gitDirOut := url.PathEscape(fmt.Sprintf("%s/%s", env.Get("GIT_DIR"), gitOptions.URL))
 
-	r, err := git.PlainClone(gitDirOut, false, &git.CloneOptions{
-		URL:      repoUrl,
-		Progress: os.Stdout,
-	})
-	if err != nil && err != git.ErrRepositoryAlreadyExists {
-		return nil, apperror.New("Clone and open repository failed", err.Error()).AddOperation("git.CloneAndOpenRepository.PlainClone")
+	r, err := git.PlainOpen(gitDirOut)
+	if err != nil && err == git.ErrRepositoryNotExists {
+
+		r, err = git.PlainClone(gitDirOut, false, &gitOptions)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	r, err = git.PlainOpen(gitDirOut)
-	if err != nil {
-		return nil, apperror.New("Clone and open repository failed", err.Error()).AddOperation("git.CloneAndOpenRepository.PlainOpen")
-	}
-
-	return r, nil
+	return r, err
 }
 
-func SyncRepository(projectName string, projectCache *project.ProjectCache) (string, apperror.Error) {
-	r, cloneAndOpenError := CloneAndOpenRepository(projectCache.RepoURL)
-	if cloneAndOpenError != nil {
-		return "", cloneAndOpenError
-	}
+func GetRevision(r *git.Repository) (string, error) {
+	plugingHash, err := r.ResolveRevision(plumbing.Revision("HEAD"))
+	return plugingHash.String(), err
+}
 
+func Pull(r *git.Repository) error {
 	w, err := r.Worktree()
 	if err != nil {
-		return "", apperror.New("Sync repository failed", err.Error()).AddOperation("git.SyncRepository.Worktree")
+		return err
 	}
 
 	err = w.Pull(&git.PullOptions{RemoteName: "origin"})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
-		return "", apperror.New("Sync repository failed", err.Error()).AddOperation("git.SyncRepository.Pull")
+		return err
 	}
 
-	h, err := r.ResolveRevision(plumbing.Revision("HEAD"))
+	return nil
+}
+
+func SyncRepository(gitOptions git.CloneOptions, revision string) (string, error) {
+	r, err := GetRepository(gitOptions)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
-	return h.String(), nil
+	remoteRevision, err := GetRevision(r)
+	if err != nil {
+		return "", err
+	}
+
+	if revision == remoteRevision {
+		return remoteRevision, nil
+	}
+
+	return remoteRevision, Pull(r)
 }

@@ -5,9 +5,11 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/maycommit/circlerr/internal/k8s/controller/utils/git"
+	"github.com/go-git/go-git/v5"
+	gitutils "github.com/maycommit/circlerr/internal/k8s/controller/utils/git"
 
 	"github.com/maycommit/circlerr/internal/k8s/controller/utils/kube"
+	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/yaml.v2"
 	"k8s.io/klog"
 )
@@ -62,11 +64,13 @@ func main() {
 	}
 
 	for _, r := range repositories.Repositories {
-		gitRepository, err := git.CloneAndOpenRepository(r.Url)
+		gitOptions := git.CloneOptions{
+			URL: r.Url,
+		}
+		remoteRevision, err := gitutils.SyncRepository(gitOptions, "")
 		if err != nil {
 			klog.Fatalf("Clone or open git repository failed: %s\n", err.Error())
 		}
 
-		revision, err := git.SyncRepository()
 	}
 }
