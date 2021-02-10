@@ -8,9 +8,9 @@ import (
 
 	"github.com/maycommit/circlerr/internal/k8s/controller/cache/circle"
 	"github.com/maycommit/circlerr/internal/k8s/controller/cache/project"
-	"github.com/maycommit/circlerr/internal/k8s/controller/env"
 	apperror "github.com/maycommit/circlerr/internal/k8s/controller/error"
 	"github.com/maycommit/circlerr/internal/k8s/controller/template/override"
+	"github.com/maycommit/circlerr/internal/k8s/controller/utils/git"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 
@@ -28,7 +28,7 @@ func NewPureManifest(projectName string, project *project.ProjectCache) PureMani
 
 func (p PureManifest) ParseManifests(circleName string, circle *circle.CircleCache) ([]*unstructured.Unstructured, apperror.Error) {
 	var res []*unstructured.Unstructured
-	gitDirOut := fmt.Sprintf("%s/%s", env.Get("GIT_DIR"), p.project.RepoURL)
+	gitDirOut := git.GetOutDir(p.project.RepoURL)
 	if err := filepath.Walk(filepath.Join(gitDirOut, p.project.Path), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

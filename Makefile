@@ -43,7 +43,7 @@ k8s-controller-e2e:
 				make k8scontroller-e2e-deps-down
 
 k8s-gitops-start:
-				$(GORUN) $(CMD_K8SCONTROLLER_GITOPS_PATH) -kubeconfig=$${HOME}/.kube/config
+				$(GORUN) $(CMD_K8SCONTROLLER_GITOPS_PATH) -kubeconfig=$${HOME}/.kube/config -config=./examples/gitops-config.yaml
 # ===
 
 # === Manager ===
